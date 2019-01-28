@@ -45,9 +45,13 @@
     <Compile Include="Business\Command.cs" />
     <Compile Include="Business\SmartPort.cs" />
     <Compile Include="Helper\ComPortInfo.cs" />
+    <Compile Include="Helper\Convertor.cs" />
     <Compile Include="Helper\ProcessConnection.cs" />
     <Compile Include="Helper\SerialWrapper.cs" />
+    <Compile Include="Model\DataPortConfig.cs" />
     <Compile Include="Model\Queue.cs" />
+    <Compile Include="Model\Sensor.cs" />
+    <Compile Include="Model\SensorChannel.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

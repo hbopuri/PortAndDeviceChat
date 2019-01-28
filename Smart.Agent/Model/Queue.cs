@@ -24,23 +24,25 @@ namespace Smart.Agent.Model
         public int WaitForNext { get; set; }
         public int MaxRetry { get; set; }
         public int RetryWait { get; set; }
+        public bool MoveNext { get; set; }
+        public int ExpectedPacketSize { get; set; }
 
         public void LoadLcmQueue()
         {
             CommandQueue.Add(new Queue
-                {SequenceId = 1, CommandName = "IF", CommBytes = _command.If(), MaxRetry = 1, RetryWait= _defaultRetryWait, WaitForNext = _defaultNextCommandWait });
+                {SequenceId = 1, CommandName = "IF", ExpectedPacketSize = 4, CommBytes = _command.If(), MaxRetry = 1, RetryWait= _defaultRetryWait, WaitForNext = _defaultNextCommandWait, MoveNext = true });
             CommandQueue.Add(new Queue
-                { SequenceId = 2, CommandName = "POWER ON", CommBytes = _command.PowerOn(), MaxRetry = 3, RetryWait= _defaultRetryWait, WaitForNext = 20 });
+                { SequenceId = 2, CommandName = "POWER ON", ExpectedPacketSize = 5, CommBytes = _command.PowerOn(), MaxRetry = 3, RetryWait= _defaultRetryWait, WaitForNext = 20, MoveNext = true });
             CommandQueue.Add(new Queue
-                { SequenceId = 3, CommandName = "CONNECT", CommBytes = _command.Connect(), MaxRetry = 10, RetryWait = _defaultRetryWait, WaitForNext = _defaultNextCommandWait });
+                { SequenceId = 3, CommandName = "CONNECT", ExpectedPacketSize = 15,  CommBytes = _command.Connect(), MaxRetry = 10, RetryWait = _defaultRetryWait, WaitForNext = _defaultNextCommandWait, MoveNext = true });
             CommandQueue.Add(new Queue
-                { SequenceId = 4, CommandName = "READ DATA PORT CONFIG", CommBytes = _command.ReadDataPortConfig(), MaxRetry = 5, RetryWait = _defaultRetryWait, WaitForNext = _defaultNextCommandWait });
+                { SequenceId = 4, CommandName = "READ DATA PORT CONFIG", ExpectedPacketSize = 197, CommBytes = _command.ReadDataPortConfig(), MaxRetry = 5, RetryWait = _defaultRetryWait, WaitForNext = _defaultNextCommandWait, MoveNext = false });
             CommandQueue.Add(new Queue
-                { SequenceId = 5, CommandName = "COLLECT", CommBytes = _command.Collect(), MaxRetry = 15, RetryWait = _defaultRetryWait, WaitForNext = _defaultNextCommandWait });
+                { SequenceId = 5, CommandName = "COLLECT", ExpectedPacketSize = 277, CommBytes = _command.Collect(), MaxRetry = 15, RetryWait = _defaultRetryWait, WaitForNext = _defaultNextCommandWait, MoveNext = false });
             CommandQueue.Add(new Queue
-                { SequenceId = 6, CommandName = "POWER OFF", CommBytes = _command.PowerOff(), MaxRetry = 3, RetryWait = _defaultRetryWait, WaitForNext = _defaultNextCommandWait });
+                { SequenceId = -2, CommandName = "POWER OFF", CommBytes = _command.PowerOff(), MaxRetry = 3, RetryWait = _defaultRetryWait, WaitForNext = _defaultNextCommandWait, MoveNext = false });
             CommandQueue.Add(new Queue
-                { SequenceId = -1, CommandName = "WRITE DATA PORT CONFIG", CommBytes = _command.WriteDataPortConfig(), MaxRetry = 1, RetryWait = _defaultRetryWait, WaitForNext = _defaultNextCommandWait });
+                { SequenceId = -1, CommandName = "WRITE DATA PORT CONFIG", CommBytes = _command.WriteDataPortConfig(), MaxRetry = 1, RetryWait = _defaultRetryWait, WaitForNext = _defaultNextCommandWait, MoveNext = false });
         }
     }
 }

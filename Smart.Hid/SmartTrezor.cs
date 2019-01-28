@@ -4,7 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Device.Net;
 
-namespace ChatConsole
+namespace Smart.Hid
 {
     public class SmartTrezor : IDisposable
     {
@@ -13,28 +13,6 @@ namespace ChatConsole
         //Define the types of devices to search for. This particular device can be connected to via USB, or Hid
         private readonly List<FilterDeviceDefinition> _deviceDefinitions = new List<FilterDeviceDefinition>
         {
-            //new FilterDeviceDefinition
-            //{
-            //    DeviceType = DeviceType.Hid, VendorId = 0x534C, ProductId = 0x0001, Label = "Trezor One Firmware 1.6.x",
-            //    UsagePage = 65280
-            //},
-            //new FilterDeviceDefinition
-            //{
-            //    DeviceType = DeviceType.Usb, VendorId = 0x534C, ProductId = 0x0001,
-            //    Label = "Trezor One Firmware 1.6.x (Android Only)"
-            //},
-            //new FilterDeviceDefinition
-            //{
-            //    DeviceType = DeviceType.Usb, VendorId = 0x1209, ProductId = 0x53C1, Label = "Trezor One Firmware 1.7.x"
-            //},
-            //new FilterDeviceDefinition
-            //    {DeviceType = DeviceType.Usb, VendorId = 0x1209, ProductId = 0x53C0, Label = "Model T"}
-            new FilterDeviceDefinition
-            {
-                DeviceType = DeviceType.Usb, VendorId = 0x0403, ProductId = 0x6001, Label = "USB to RS485 Converter",
-                UsagePage = 65280
-            },
-
             new FilterDeviceDefinition
             {
                 DeviceType = DeviceType.Hid, VendorId = 0x04D8, ProductId = 0x00DE, Label = "MCP2210 USB to SPI Master",
@@ -87,16 +65,7 @@ namespace ChatConsole
         public async Task InitializeTrezorAsync()
         {
             //Get the first available device and connect to it
-            var devices = await DeviceManager.Current.GetDevices(_deviceDefinitions);
-            TrezorDevice = devices.FirstOrDefault();
-            if (TrezorDevice != null) await TrezorDevice.InitializeAsync();
-        }
-        public async Task InitializeTrezorAsync(uint vendorId, uint productId)
-        {
-            //Get the first available device and connect to it
-            var deviceDefinition = _deviceDefinitions.Where(x => x.VendorId == vendorId && x.ProductId == productId)
-                .ToList();
-            var devices = await DeviceManager.Current.GetDevices(deviceDefinition);
+            var devices = await DeviceManager.Current.GetDevicesAsync(_deviceDefinitions);
             TrezorDevice = devices.FirstOrDefault();
             if (TrezorDevice != null) await TrezorDevice.InitializeAsync();
         }
@@ -126,7 +95,7 @@ namespace ChatConsole
             return await TrezorDevice.WriteAndReadAsync(writeBuffer);
         }
 
-        public async Task WriteToDecrementAsync()
+        public async Task<byte[]> WriteToDecrementAsync()
         {
             //GPIO-1 Chip Select (should become low) Strain Gage
             //Create a buffer with 3 bytes (initialize)
@@ -136,9 +105,9 @@ namespace ChatConsole
             writeBuffer[2] = 0x00;
 
             //Write the data to the device
-            await TrezorDevice.WriteAsync(writeBuffer);
+            return await TrezorDevice.WriteAndReadAsync(writeBuffer);
         }
-        public async Task WriteToSaveAsync()
+        public async Task<byte[]> WriteToSaveAsync()
         {
             //GPIO-1 Chip Select (should become low) Strain Gage
             //Create a buffer with 3 bytes (initialize)
@@ -146,12 +115,6 @@ namespace ChatConsole
             writeBuffer[0] = 0x20;
             writeBuffer[1] = 0x00;
             writeBuffer[2] = 0x00;
-
-            //Write the data to the device
-            await TrezorDevice.WriteAsync(writeBuffer);
-        }
-        public async Task<byte[]> WriteToAsync(byte[] writeBuffer)
-        {
 
             //Write the data to the device
             return await TrezorDevice.WriteAndReadAsync(writeBuffer);

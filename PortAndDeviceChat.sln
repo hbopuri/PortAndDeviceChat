@@ -7,6 +7,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ChatConsole", "ChatConsole\
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Smart.Agent", "Smart.Agent\Smart.Agent.csproj", "{BE6F599C-07F9-46DF-88DC-2D1691C2FB72}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Smart.Hid", "Smart.Hid\Smart.Hid.csproj", "{2F4BF948-460C-4BDE-8978-A27D65AD12AD}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -21,6 +23,10 @@ Global
 		{BE6F599C-07F9-46DF-88DC-2D1691C2FB72}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{BE6F599C-07F9-46DF-88DC-2D1691C2FB72}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{BE6F599C-07F9-46DF-88DC-2D1691C2FB72}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2F4BF948-460C-4BDE-8978-A27D65AD12AD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2F4BF948-460C-4BDE-8978-A27D65AD12AD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2F4BF948-460C-4BDE-8978-A27D65AD12AD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2F4BF948-460C-4BDE-8978-A27D65AD12AD}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

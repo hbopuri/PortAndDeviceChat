@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Smart.Agent.Helper;
 using Smart.Agent.Model;
+using Smart.Log;
 
 namespace Smart.Agent.Business
 {
@@ -17,8 +18,8 @@ namespace Smart.Agent.Business
         private Queue _currentCommand;
         private byte[] _responseBuffer;
         private DataPortConfig _dataPortConfig;
-        private Sensor _accelerometerSensor;
-        private Sensor _strainGageSensor;
+        private Sensor _top;
+        private Sensor _tip;
         private byte[] Combine(params byte[][] arrays)
         {
             byte[] rv = new byte[arrays.Sum(a => a.Length)];
@@ -41,11 +42,11 @@ namespace Smart.Agent.Business
             if (_currentCommand.ExpectedPacketSize == 277) // Collect Response
                 Task.Run(() => ProcessSensorData(_responseBuffer));
             var hexString = _responseBuffer.ToHex();
-            Console.WriteLine($"Response for {_currentCommand.CommandName}: {hexString}");
+            SmartLog.WriteLine($"Response for {_currentCommand.CommandName}: {hexString}");
             _responseBuffer = null;
 
-            //Console.WriteLine(ToHex(respBuffer));
-            //Console.WriteLine(respBuffer.Length+":"+string.Join("|", respBuffer));
+            //SmartLog.WriteLine(ToHex(respBuffer));
+            //SmartLog.WriteLine(respBuffer.Length+":"+string.Join("|", respBuffer));
         }
 
         private void ProcessReadConfig(byte[] responseBuffer)
@@ -69,44 +70,57 @@ namespace Smart.Agent.Business
                 TriggerType = responseBuffer.Skip(position+20).Take(1).Reverse().ToArray(),
                 PowerFault = responseBuffer.Skip(position+21).Take(1).Reverse().ToArray()
             };
-            _dataPortConfig.SensorChannels.Add(new SensorChannel
-            {
-                Active = responseBuffer.Skip(position+22).Take(1).Reverse().ToArray(),
-                Type = responseBuffer.Skip(position+23).Take(1).Reverse().ToArray(),
-                Gain = responseBuffer.Skip(position+24).Take(4).Reverse().ToArray(),
-                Offset = responseBuffer.Skip(position+28).Take(4).Reverse().ToArray(),
-                SensitivityGageFactor = responseBuffer.Skip(position+32).Take(2).Reverse().ToArray(),
-                AbsoluteR = responseBuffer.Skip(position+34).Take(2).Reverse().ToArray(),
-                CalibrationTemp = responseBuffer.Skip(position+36).Take(1).Reverse().ToArray(),
-                MonitoringTemp = responseBuffer.Skip(position+37).Take(1).Reverse().ToArray(),
-                WriteCount = responseBuffer.Skip(position+38).Take(1).Reverse().ToArray(),
-                SamplingFrequency = responseBuffer.Skip(position+39).Take(1).Reverse().ToArray(),
-                Location = responseBuffer.Skip(position+40).Take(1).Reverse().ToArray(),
-                Distance = responseBuffer.Skip(position+41).Take(2).Reverse().ToArray(),
-                Diagnostic = responseBuffer.Skip(position+43).Take(2).ToArray(),
-                WriteFlagSerialNumber = responseBuffer.Skip(position+45).Take(2).Reverse().ToArray()
-            });
-            position = position+2;
+            position = position + 22;
+            //_dataPortConfig.Afe1ModelAndSn = responseBuffer.Skip(position).Take(4).Reverse().ToArray();
+            //_dataPortConfig.Afe2ModelAndSn = responseBuffer.Skip(position + 4).Take(4).Reverse().ToArray();
+            //_dataPortConfig.Afe3ModelAndSn = responseBuffer.Skip(position + 8).Take(4).Reverse().ToArray();
+            //_dataPortConfig.AfeWriteProtect = responseBuffer.Skip(position + 12).Take(4).Reverse().ToArray();
+            //position = position + 16;
             for (var i = 0; i < 6; i++)
             {
-                _dataPortConfig.SensorChannels.Add(new SensorChannel
+                if (i > 0)
                 {
-                    Active = responseBuffer.Skip(position).Take(1).Reverse().ToArray(),
-                    Type = responseBuffer.Skip(position + 1).Take(1).Reverse().ToArray(),
-                    Gain = responseBuffer.Skip(position + 2).Take(4).Reverse().ToArray(),
-                    Offset = responseBuffer.Skip(position + 6).Take(4).Reverse().ToArray(),
-                    SensitivityGageFactor = responseBuffer.Skip(position + 10).Take(2).Reverse().ToArray(),
-                    AbsoluteR = responseBuffer.Skip(position + 12).Take(2).Reverse().ToArray(),
-                    CalibrationTemp = responseBuffer.Skip(position + 14).Take(1).Reverse().ToArray(),
-                    MonitoringTemp = responseBuffer.Skip(position + 15).Take(1).Reverse().ToArray(),
-                    WriteCount = responseBuffer.Skip(position + 16).Take(1).Reverse().ToArray(),
-                    SamplingFrequency = responseBuffer.Skip(position + 17).Take(1).Reverse().ToArray(),
-                    Location = responseBuffer.Skip(position + 18).Take(1).Reverse().ToArray(),
-                    Distance = responseBuffer.Skip(position + 19).Take(2).Reverse().ToArray(),
-                    Diagnostic = responseBuffer.Skip(position + 21).Take(2).Reverse().ToArray(),
-                    WriteFlagSerialNumber = responseBuffer.Skip(position + 23).Take(2).Reverse().ToArray()
-                });
-                position = position + 23;
+                    _dataPortConfig.SensorChannels.Add(new SensorChannel
+                    {
+                        Active = responseBuffer.Skip(position).Take(1).Reverse().ToArray(),
+                        Type = responseBuffer.Skip(position + 1).Take(1).Reverse().ToArray(),
+                        Gain = responseBuffer.Skip(position + 2).Take(3).Reverse().ToArray(),
+                        Offset = responseBuffer.Skip(position + 5).Take(4).Reverse().ToArray(),
+                        SensitivityGageFactor = responseBuffer.Skip(position + 9).Take(2).Reverse().ToArray(),
+                        AbsoluteR = responseBuffer.Skip(position + 11).Take(2).Reverse().ToArray(),
+                        CalibrationTemp = responseBuffer.Skip(position + 13).Take(1).Reverse().ToArray(),
+                        MonitoringTemp = responseBuffer.Skip(position + 14).Take(1).Reverse().ToArray(),
+                        WriteCount = responseBuffer.Skip(position + 15).Take(1).Reverse().ToArray(),
+                        SamplingFrequency = responseBuffer.Skip(position + 16).Take(1).Reverse().ToArray(),
+                        Location = responseBuffer.Skip(position + 17).Take(1).Reverse().ToArray(),
+                        Distance = responseBuffer.Skip(position + 18).Take(2).Reverse().ToArray(),
+                        Diagnostic = responseBuffer.Skip(position + 20).Take(2).Reverse().ToArray(),
+                        WriteFlagSerialNumber = responseBuffer.Skip(position + 22).Take(2).Reverse().ToArray()
+                    });
+                    position = position + 24;
+                    _dataPortConfig.SensorChannels[i].Gain = _dataPortConfig.SensorChannels[i].Gain.AddAtLast(00);
+                }
+                else
+                {
+                    _dataPortConfig.SensorChannels.Add(new SensorChannel
+                    {
+                        Active = responseBuffer.Skip(position).Take(1).Reverse().ToArray(),
+                        Type = responseBuffer.Skip(position + 1).Take(1).Reverse().ToArray(),
+                        Gain = responseBuffer.Skip(position + 2).Take(4).Reverse().ToArray(),
+                        Offset = responseBuffer.Skip(position + 6).Take(4).Reverse().ToArray(),
+                        SensitivityGageFactor = responseBuffer.Skip(position + 10).Take(2).Reverse().ToArray(),
+                        AbsoluteR = responseBuffer.Skip(position + 12).Take(2).Reverse().ToArray(),
+                        CalibrationTemp = responseBuffer.Skip(position + 14).Take(1).Reverse().ToArray(),
+                        MonitoringTemp = responseBuffer.Skip(position + 15).Take(1).Reverse().ToArray(),
+                        WriteCount = responseBuffer.Skip(position + 16).Take(1).Reverse().ToArray(),
+                        SamplingFrequency = responseBuffer.Skip(position + 17).Take(1).Reverse().ToArray(),
+                        Location = responseBuffer.Skip(position + 18).Take(1).Reverse().ToArray(),
+                        Distance = responseBuffer.Skip(position + 19).Take(2).Reverse().ToArray(),
+                        Diagnostic = responseBuffer.Skip(position + 21).Take(2).Reverse().ToArray(),
+                        WriteFlagSerialNumber = responseBuffer.Skip(position + 23).Take(2).Reverse().ToArray()
+                    });
+                    position = position + 25;
+                }
             }
 
             //position == 173
@@ -114,93 +128,135 @@ namespace Smart.Agent.Business
             _dataPortConfig.Afe2ModelAndSn = responseBuffer.Skip(position + 4).Take(4).Reverse().ToArray();
             _dataPortConfig.Afe3ModelAndSn = responseBuffer.Skip(position + 8).Take(4).Reverse().ToArray();
             _dataPortConfig.AfeWriteProtect = responseBuffer.Skip(position + 12).Take(4).Reverse().ToArray();
+
+            SmartLog.WriteLine("-- General and Diagnostics Only ---");
+            SmartLog.WriteLine($"Firmware Version: {_dataPortConfig.FirmwareVersion.ToDecimal(0)}");
+            SmartLog.WriteLine($"Sample Interval: {_dataPortConfig.SampleInterval.ToDecimal(0)}");
+            SmartLog.WriteLine($"PreTrigger Samples: {_dataPortConfig.PreTriggerSamples.ToDecimal(0)}");
+            SmartLog.WriteLine($"Mode Flag: {_dataPortConfig.ModeFlag.ToHex()}");
+            SmartLog.WriteLine($"Mode Period: {_dataPortConfig.ModePeriod.ToDecimal(0)}");
+            SmartLog.WriteLine($"Config Timestamp: {_dataPortConfig.ConfigTimestamp.ToDecimal(0)}");
+            SmartLog.WriteLine($"Trigger Threshold: {_dataPortConfig.TriggerThreshold.ToDecimal(0)}");
+            SmartLog.WriteLine($"CommandModeTimeout: {_dataPortConfig.CommandModeTimeout.ToDecimal(0)}");
+            SmartLog.WriteLine($"ActChannels DataPacking: {_dataPortConfig.ActChannelsDataPacking.ToHex()}");
+            SmartLog.WriteLine($"SleepModeBtOnTime: {_dataPortConfig.SleepModeBtOnTime.ToDecimal(0)}");
+            SmartLog.WriteLine($"SleepModeBtOffTime: {_dataPortConfig.SleepModeBtOffTime.ToDecimal(0)}");
+            SmartLog.WriteLine($"Ambient Temp: {_dataPortConfig.AmbientTemp.ToDecimal(0)}");
+            SmartLog.WriteLine($"Msp Temp: {_dataPortConfig.MspTemp.ToDecimal(0)}");
+            SmartLog.WriteLine($"Trigger Type: {_dataPortConfig.TriggerType.ToHex()}");
+            SmartLog.WriteLine($"Power Fault: {_dataPortConfig.PowerFault.ToBinary()}");
+            SmartLog.WriteLine($"Afe1ModelAndSn: {_dataPortConfig.Afe1ModelAndSn.ToHex()}");
+            SmartLog.WriteLine($"Afe2ModelAndSn: {_dataPortConfig.Afe2ModelAndSn.ToHex()}");
+            SmartLog.WriteLine($"Afe3ModelAndSn: {_dataPortConfig.Afe3ModelAndSn.ToHex()}");
+            SmartLog.WriteLine($"AfeWriteProtect: {_dataPortConfig.AfeWriteProtect.ToHex()}");
+            int channelIndex = 0;
+            foreach (var sensorChannel in _dataPortConfig.SensorChannels)
+            {
+                SmartLog.WriteLine($"-- Sensor Channel:{channelIndex} ---");
+                SmartLog.WriteLine($"Active: {sensorChannel.Active.ToHex()}");
+                SmartLog.WriteLine($"Type: {sensorChannel.Type.ToHex()}");
+                SmartLog.WriteLine($"Gain: {sensorChannel.Gain.ToFloat(0)}");
+                SmartLog.WriteLine($"Offset: {sensorChannel.Offset.ToDecimal(0)}");
+                SmartLog.WriteLine($"SensitivityGageFactor: {sensorChannel.SensitivityGageFactor.ToDecimal(0)}");
+                SmartLog.WriteLine($"AbsoluteR: {sensorChannel.AbsoluteR.ToDecimal(0)}");
+                SmartLog.WriteLine($"CalibrationTemp: {sensorChannel.CalibrationTemp.ToDecimal(0)}");
+                SmartLog.WriteLine($"MonitoringTemp: {sensorChannel.MonitoringTemp.ToDecimal(0)}");
+                SmartLog.WriteLine($"WriteCount: {sensorChannel.WriteCount.ToDecimal(0)}");
+                SmartLog.WriteLine($"SamplingFrequency: {sensorChannel.SamplingFrequency.ToDecimal(0)}");
+                SmartLog.WriteLine($"Location: {sensorChannel.Location.ToDecimal(0)}");
+                SmartLog.WriteLine($"Distance: {sensorChannel.Distance.ToDecimal(0)}");
+                SmartLog.WriteLine($"Diagnostic: {sensorChannel.Diagnostic.ToDecimal(0)}");
+                channelIndex++;
+            }
+
         }
 
         private void ProcessSensorData(byte[] responseBuffer)
         {
-            _accelerometerSensor = new Sensor
+            _top = new Sensor
             {
                 Type = SensorType.Accelerometer,
                 Data = new List<SensorData>()
             };
-            _strainGageSensor = new Sensor
+            _tip = new Sensor
             {
                 Type = SensorType.StrainGage,
                 Data = new List<SensorData>()
             };
+
             int position = 22;
-            while (position <= 262)
+            var isUncompressed = _dataPortConfig.ActChannelsDataPacking.ToBitArray()[0];
+            switch (_dataPortConfig.ActChannelsDataPacking.ToHex(true))
             {
-                _accelerometerSensor.Data.Add(new SensorData{ Bytes = responseBuffer.Skip(position).Take(3).ToArray() });
-                _strainGageSensor.Data.Add(new SensorData { Bytes = responseBuffer.Skip(position + 3).Take(3).ToArray() });
-                position = position + 6;
+                case "21":
+                {
+                        break;
+                }
+                case "41":
+                {
+                    if (isUncompressed)
+                    {
+                        while (position <= 262)
+                        {
+                            _top.Data.Add(new SensorData { Bytes = responseBuffer.Skip(position).Take(2).ToArray() });
+                            _tip.Data.Add(new SensorData { Bytes = responseBuffer.Skip(position + 2).Take(2).ToArray() });
+                            position = position + 4;
+                        }
+                    }
+                    else
+                    {
+                        while (position <= 262)
+                        {
+                            _top.Data.Add(new SensorData { Bytes = responseBuffer.Skip(position).Take(3).ToArray() });
+                            _tip.Data.Add(new SensorData { Bytes = responseBuffer.Skip(position + 3).Take(3).ToArray() });
+                            position = position + 6;
+                        }
+                    }
+                        break;
+                }
+                case "61":
+                {
+                    break;
+                }
             }
-
-            foreach (var t in _accelerometerSensor.Data)
+           
+            foreach (var t in _top.Data)
             {
-                var x = t.Bytes;
-                Array.Resize(ref x, 8);
-                t.Value = BitConverter.ToInt64(x, 0);
                 var channelIndex = 0;
-                var offsetArray = _dataPortConfig.SensorChannels[channelIndex].Offset;
-                Array.Resize(ref offsetArray, 4);
-                var offset = System.BitConverter.ToSingle(offsetArray, 0);
+                var offset = _dataPortConfig.SensorChannels[channelIndex].Offset.ToDecimal(0);
+                var gain = _dataPortConfig.SensorChannels[channelIndex].Gain.ToFloat(0);
+                var gage = _dataPortConfig.SensorChannels[channelIndex].SensitivityGageFactor.ToDecimal(0);
 
-                var gainArray = _dataPortConfig.SensorChannels[channelIndex].Gain;
-                Array.Resize(ref gainArray, 4);
-                var gain = System.BitConverter.ToSingle(offsetArray, 0);
-
-                var gageArray = _dataPortConfig.SensorChannels[channelIndex].SensitivityGageFactor;
-                Array.Resize(ref gageArray, 2);
-                var gage = System.BitConverter.ToInt16(gageArray, 0);
-
-                t.Value = (t.Value + offset) - 2047 * gain * (0.9039 / gage);
+                var some = (BitConverter.ToUInt16(t.Bytes, 0) + (double)offset - 2047) * (gain * (0.9039 / (double)gage));
+                t.Value = some;
             }
 
-            _accelerometerSensor.Average = _accelerometerSensor.Data.Average(x => x.Value);
+            _top.Average = _top.Data.Average(x => x.Value);
 
-            foreach (var t in _strainGageSensor.Data)
+            foreach (var t in _tip.Data)
             {
-                var x = t.Bytes;
-                Array.Resize(ref x, 8);
-                t.Value = BitConverter.ToInt64(x, 0);
                 var channelIndex = 1;
-                var offsetArray = _dataPortConfig.SensorChannels[channelIndex].Offset;
-                Array.Resize(ref offsetArray, 4);
-                var offset = System.BitConverter.ToSingle(offsetArray, 0);
-
-                var gainArray = _dataPortConfig.SensorChannels[channelIndex].Gain;
-                Array.Resize(ref gainArray, 4);
-                var gain = System.BitConverter.ToSingle(offsetArray, 0);
-
-                var gageArray = _dataPortConfig.SensorChannels[channelIndex].SensitivityGageFactor;
-                Array.Resize(ref gageArray, 2);
-                var gage = System.BitConverter.ToInt16(gageArray, 0);
-
-                var absoluteArray = _dataPortConfig.SensorChannels[channelIndex].AbsoluteR;
-                Array.Resize(ref absoluteArray, 2);
-                var absoluteR = System.BitConverter.ToInt16(gageArray, 0);
-
-                t.Value = (t.Value + offset) - 1092 * gain * ((0.00105026/ (absoluteR /100))/gage);
+                var offset = _dataPortConfig.SensorChannels[channelIndex].Offset.ToDecimal(0);
+                var gain = _dataPortConfig.SensorChannels[channelIndex].Gain.ToFloat(0);
+                var gage = _dataPortConfig.SensorChannels[channelIndex].SensitivityGageFactor.ToDecimal(0);
+                var absoluteR = _dataPortConfig.SensorChannels[channelIndex].AbsoluteR.ToDecimal(0);
+                t.Value = (BitConverter.ToUInt16(t.Bytes, 0) + (double) offset - 1092 ) * gain * (double) (((decimal) 0.00105026 / (absoluteR / 100)) / gage);
             }
 
-            _strainGageSensor.Average = _strainGageSensor.Data.Average(x => x.Value);
-            //var offset1 = System.BitConverter.ToSingle(_dataPortConfig.SensorChannels[1].Offset, 0);
-            //var offset = _dataPortConfig.SensorChannels[1].Offset.ToType<float>();
-            //Console.WriteLine("240 Bytes of Collect Response");
-            //Console.WriteLine(string.Join("|", data));
+            _tip.Average = _tip.Data.Average(x => x.Value);
+           
         }
         private void port_DataReceived(object sender,
             SerialDataReceivedEventArgs e)
         {
             // Show all the incoming data in the port's buffer
             int bytes = _port.BytesToRead;
-            //Console.WriteLine($"Trying to Read {bytes} bytes");
+            //SmartLog.WriteLine($"Trying to Read {bytes} bytes");
             byte[] buffer = new byte[bytes];
             _port.Read(buffer, 0, bytes);
             HandleSerialData(buffer);
             //var response = port.ReadExisting();
-            //Console.WriteLine(response);
+            //SmartLog.WriteLine(response);
         }
         public void Init(byte interfaceId, string commPort = "COM6")
         {
@@ -215,13 +271,13 @@ namespace Smart.Agent.Business
         public void Start()
         {
             _port.Open();
-            Console.WriteLine($"Opened: {_port.PortName}");
+            SmartLog.WriteLine($"Opened: {_port.PortName}");
             foreach (var queue in _commaQueue.CommandQueue.Where(x => x.SequenceId > 0).OrderBy(x => x.SequenceId))
             {
                 ExecuteCommand(queue);
             }
 
-            Console.WriteLine("--- Completed the Command Queue ---");
+            //SmartLog.WriteLine("--- Completed the Command Queue ---");
         }
 
         private void ExecuteCommand(Queue queue)
@@ -230,14 +286,14 @@ namespace Smart.Agent.Business
             var command = queue.CommBytes;
             while (queue.MaxRetry >= 1)
             {
-                Console.WriteLine($"***** Sending {queue.CommandName} Command *****");
-                Console.WriteLine($"Command: {queue.CommBytes.ToHex()}");
+                SmartLog.WriteLine($"***** Sending {queue.CommandName} Command *****");
+                SmartLog.WriteLine($"Command: {queue.CommBytes.ToHex()}");
                 try
                 {
                     _port.Write(command, 0, command.Length);
                     if (queue.WaitForNext > 0)
                     {
-                        Console.WriteLine($"Sleeping for {queue.WaitForNext} seconds");
+                        SmartLog.WriteLine($"Sleeping for {queue.WaitForNext} seconds");
                         Thread.Sleep(TimeSpan.FromSeconds(queue.WaitForNext));
                     }
 
@@ -245,10 +301,10 @@ namespace Smart.Agent.Business
                 }
                 catch (Exception exception)
                 {
-                    Console.WriteLine(exception.Message);
+                    SmartLog.WriteLine(exception.Message);
                     if (queue.WaitForNext > 0)
                     {
-                        Console.WriteLine($"Sleeping for {queue.RetryWait} seconds before retry");
+                        SmartLog.WriteLine($"Sleeping for {queue.RetryWait} seconds before retry");
                         Thread.Sleep(TimeSpan.FromSeconds(queue.RetryWait));
                     }
 
@@ -261,7 +317,7 @@ namespace Smart.Agent.Business
         {
             if (string.IsNullOrWhiteSpace(_comPortName))
             {
-                Console.WriteLine("Port cannot be Null or Empty");
+                SmartLog.WriteLine("Port cannot be Null or Empty");
                 return;
             }
 
@@ -270,7 +326,7 @@ namespace Smart.Agent.Business
             {
                 if (!port.Open())
                 {
-                    Console.WriteLine("Unable to connect.");
+                    SmartLog.WriteLine("Unable to connect.");
                     return;
                 }
                 //port.DataReceived += new
@@ -282,12 +338,13 @@ namespace Smart.Agent.Business
             }
         }
 
-        public void Collect()
+        public List<Sensor> Collect()
         {
             var collectCommand = _commaQueue.CommandQueue.FirstOrDefault(x =>
                 x.CommandName.Equals("COLLECT", StringComparison.OrdinalIgnoreCase));
             if(collectCommand != null)
                 ExecuteCommand(collectCommand);
+            return new List<Sensor>{_top, _tip};
         }
         public void PowerOff()
         {

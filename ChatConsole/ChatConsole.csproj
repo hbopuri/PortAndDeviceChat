@@ -102,6 +102,10 @@
       <Project>{2f4bf948-460c-4bde-8978-a27d65ad12ad}</Project>
       <Name>Smart.Hid</Name>
     </ProjectReference>
+    <ProjectReference Include="..\Smart.Log\Smart.Log.csproj">
+      <Project>{9f7bcef8-3f61-45d3-838b-83b320b9b4e3}</Project>
+      <Name>Smart.Log</Name>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Threading.Tasks;
 using Hid.Net.Windows;
+using Smart.Log;
 using Usb.Net.Windows;
 
 namespace Smart.Hid
@@ -13,26 +14,26 @@ namespace Smart.Hid
 
         private static void DisplayData(byte[] readBuffer)
         {
-            Console.WriteLine(string.Join(" ", readBuffer));
+            SmartLog.WriteLine(string.Join(" ", readBuffer));
             Console.ReadKey();
         }
         private static async Task DisplayDataAsync()
         {
             var bytes = await DeviceConnectionExample.WriteAndReadFromDeviceAsync();
             Console.Clear();
-            Console.WriteLine("Device connected. Output:");
+            SmartLog.WriteLine("Device connected. Output:");
             DisplayData(bytes);
         }
 
         private static void DisplayWaitMessage()
         {
-            Console.WriteLine("Waiting for device to be plugged in...");
+            SmartLog.WriteLine("Waiting for device to be plugged in...");
         }
 
         private static void _DeviceConnectionExample_TrezorDisconnected(object sender, EventArgs e)
         {
             Console.Clear();
-            Console.WriteLine("Disconnected.");
+            SmartLog.WriteLine("Disconnected.");
             DisplayWaitMessage();
         }
         private static async void _DeviceConnectionExample_TrezorInitialized(object sender, EventArgs e)
@@ -45,7 +46,7 @@ namespace Smart.Hid
             catch (Exception ex)
             {
                 Console.Clear();
-                Console.WriteLine(ex.ToString());
+                SmartLog.WriteLine(ex.ToString());
             }
         }
         public async void Init()
@@ -70,10 +71,10 @@ namespace Smart.Hid
             while (true)
             {
                 //Console.Clear();
-                Console.WriteLine();
-                Console.WriteLine("1. Increment Connected Device");
-                Console.WriteLine("2. Decrement Connected Device");
-                Console.WriteLine("3. Save");
+                SmartLog.WriteLine();
+                SmartLog.WriteLine("1. Increment Connected Device");
+                SmartLog.WriteLine("2. Decrement Connected Device");
+                SmartLog.WriteLine("3. Save");
                 var consoleKey = Console.ReadKey();
                 if (consoleKey.KeyChar == '1') return 1;
                 if (consoleKey.KeyChar == '2') return 2;
@@ -95,7 +96,7 @@ namespace Smart.Hid
                     catch (Exception ex)
                     {
                         Console.Clear();
-                        Console.WriteLine(ex.ToString());
+                        SmartLog.WriteLine(ex.ToString());
                     }
                     //Console.ReadKey();
                     break;
@@ -109,7 +110,7 @@ namespace Smart.Hid
                     catch (Exception ex)
                     {
                         Console.Clear();
-                        Console.WriteLine(ex.ToString());
+                        SmartLog.WriteLine(ex.ToString());
                     }
                    // Console.ReadKey();
                     break;
@@ -123,7 +124,7 @@ namespace Smart.Hid
                     catch (Exception ex)
                     {
                         Console.Clear();
-                        Console.WriteLine(ex.ToString());
+                        SmartLog.WriteLine(ex.ToString());
                     }
                     //Console.ReadKey();
                     break;
@@ -133,24 +134,24 @@ namespace Smart.Hid
         {
             var bytes = await DeviceConnectionExample.WriteToIncrementAsync();
             Console.Clear();
-            Console.WriteLine("Increment Command Passed");
-            Console.WriteLine("Device connected. Output:");
+            SmartLog.WriteLine("Increment Command Passed");
+            SmartLog.WriteLine("Device connected. Output:");
             DisplayData(bytes);
         }
         private static async Task DecrementAsync()
         {
             var bytes = await DeviceConnectionExample.WriteToDecrementAsync();
             Console.Clear();
-            Console.WriteLine("Decrement Command Passed");
-            Console.WriteLine("Device connected. Output:");
+            SmartLog.WriteLine("Decrement Command Passed");
+            SmartLog.WriteLine("Device connected. Output:");
             DisplayData(bytes);
         }
         private static async Task SaveAsync()
         {
             var bytes = await DeviceConnectionExample.WriteToSaveAsync();
             Console.Clear();
-            Console.WriteLine("Increment Command Passed");
-            Console.WriteLine("Device connected. Output:");
+            SmartLog.WriteLine("Increment Command Passed");
+            SmartLog.WriteLine("Device connected. Output:");
             DisplayData(bytes);
         }
     }

@@ -4,6 +4,7 @@ using System.Threading;
 using Smart.Agent.Business;
 using Smart.Agent.Helper;
 using Smart.Hid;
+using Smart.Log;
 
 namespace ChatConsole
 {
@@ -16,42 +17,46 @@ namespace ChatConsole
         static void Main(string[] args)
         {
             Console.Clear();
-            Console.WriteLine("Available COM ports\n");
-            Console.WriteLine("--------------------------------------------------------\n");
+            SmartLog.WriteLine("Available COM ports\n");
+            SmartLog.WriteLine("--------------------------------------------------------\n");
             var comports = ComPortInfo.GetComPortsInfo();
             int i = 1;
             int selectedOption;
             comports.ForEach(x =>
             {
-                Console.WriteLine($"{i}) {x.Name}:{x.Description}");
+                SmartLog.WriteLine($"{i}) {x.Name}:{x.Description}");
                 i++;
             });
-            Console.WriteLine("\n");
-            Console.WriteLine("Select COM Port (Example: Type 1 and press enter for first COM port)\n");
+            SmartLog.WriteLine("\n");
+            SmartLog.WriteLine("Select COM Port (Example: Type 1 and press enter for first COM port)\n");
             while (!int.TryParse(Console.ReadLine(), out selectedOption)
                    || (comports.ElementAtOrDefault(selectedOption - 1) == null))
             {
-                Console.WriteLine("Invalid Entry\nPlease Enter from available options");
+                SmartLog.WriteLine("Invalid Entry\nPlease Enter from available options");
             }
 
             var selectedComPort = comports.ElementAtOrDefault(selectedOption - 1);
             if (selectedComPort == null)
             {
-                Console.WriteLine("Invalid Entry\nPlease Enter from available options");
+                SmartLog.WriteLine("Invalid Entry\nPlease Enter from available options");
                 Console.ReadKey();
                 return;
             }
-            Console.WriteLine("Please Enter Interface Board Id (in Hex)\n");
+            SmartLog.WriteLine("Please Enter Interface Board Id (in Hex)\n");
             while (!StringToByteArray(Console.ReadLine()))
             {
-                Console.WriteLine($"Invalid Hex. Please re-enter\n");
+                SmartLog.WriteLine($"Invalid Hex. Please re-enter\n");
             }
 
 
             SmartPort smartPort = new SmartPort();
             smartPort.Init(_boardId, selectedComPort.Name);
             smartPort.Start();
-            smartPort.Collect();
+            var sensors = smartPort.Collect();
+            foreach (var sensor in sensors)
+            {
+                SmartLog.WriteLine($"{sensor.Type}:{sensor.Average} for {sensor.Data.Count} samples");
+            }
 
             _smartDevice = new SmartDevice();
             _smartDevice.Init();
@@ -59,10 +64,10 @@ namespace ChatConsole
             new ManualResetEvent(false).WaitOne();
 
 
-            Console.WriteLine("Type exit to quite\n");
+            SmartLog.WriteLine("Type exit to quite\n");
             while (!Convert.ToString(Console.ReadLine()).Equals("exit", StringComparison.OrdinalIgnoreCase))
             {
-                Console.WriteLine("Unknown command\n");
+                SmartLog.WriteLine("Unknown command\n");
             }
 
             _smartDevice.Dispose();
@@ -83,7 +88,7 @@ namespace ChatConsole
             }
             catch (Exception e)
             {
-                Console.WriteLine(e.Message);
+                SmartLog.WriteLine(e.Message);
                 return false;
             }
         }

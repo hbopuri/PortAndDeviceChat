@@ -19,4 +19,11 @@ namespace Smart.Agent.Model
         public byte[] Bytes { get; set; }
         public double Value { get; set; }
     }
+
+    public enum ChannelMode
+    {
+        TwentyOne,
+        FortyOne,
+        SixtyOne
+    }
 }

@@ -20,7 +20,11 @@ namespace Smart.Agent.Helper
                 return (T) obj;
             }
         }
-
+        public static byte CheckSum(this byte[] data)
+        {
+            long longSum = data.Sum(x => (long)x);
+            return unchecked((byte)longSum);
+        }
         public static string ToHex(this byte[] ba, bool stripHyphens = false)
         {
             //var hex = new StringBuilder(ba.Length * 2);

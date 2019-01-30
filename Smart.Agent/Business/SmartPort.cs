@@ -41,8 +41,60 @@ namespace Smart.Agent.Business
                 Task.Run(() => ProcessReadConfig(_responseBuffer));
             if (_currentCommand.ExpectedPacketSize == 277) // Collect Response
                 Task.Run(() => ProcessSensorData(_responseBuffer));
-            var hexString = _responseBuffer.ToHex();
-            SmartLog.WriteLine($"Response for {_currentCommand.CommandName}: {hexString}");
+            byte checkSum;
+            if (_currentCommand.ExpectedPacketSize == 277)
+            {
+                var acknowledgementArray = _responseBuffer.Take(14).ToArray();
+                checkSum = acknowledgementArray.Take(acknowledgementArray.Length - 1).ToArray().CheckSum();
+                var hexString = acknowledgementArray.ToHex();
+                SmartLog.WriteLine(
+                    $"Response for {_currentCommand.CommandName} Acknowledgement (CheckSum {new[] {checkSum}.ToHex()} Length:{acknowledgementArray.Length}): {hexString}");
+
+                if (acknowledgementArray[acknowledgementArray.Length - 1] != checkSum)
+                {
+                    SmartLog.WriteLine(
+                        $"*** Invalid Checksum For Collect Acknowledgement Response (CheckSum {new[] {checkSum}.ToHex()}***");
+                }
+
+                var sensorDataArray = _responseBuffer.Skip(14).Take(249).ToArray();
+                checkSum = sensorDataArray.Take(sensorDataArray.Length - 1).ToArray().CheckSum();
+                hexString = sensorDataArray.ToHex();
+                SmartLog.WriteLine(
+                    $"Response for {_currentCommand.CommandName} Sensor Data (CheckSum {new[] {checkSum}.ToHex()} Length:{sensorDataArray.Length}): {hexString}");
+
+                if (sensorDataArray[sensorDataArray.Length - 1] != checkSum)
+                {
+                    SmartLog.WriteLine(
+                        $"*** Invalid Checksum For Collect Sensor Data Response (CheckSum {new[] {checkSum}.ToHex()}***");
+                }
+
+                var completeArray = _responseBuffer.Skip(263).Take(14).ToArray();
+                checkSum = completeArray.Take(completeArray.Length - 1).ToArray().CheckSum();
+                hexString = completeArray.ToHex();
+                SmartLog.WriteLine(
+                    $"Response for {_currentCommand.CommandName} Success/Complete (CheckSum {new[] {checkSum}.ToHex()} Length:{completeArray.Length}): {hexString}");
+
+                if (completeArray[completeArray.Length - 1] != checkSum)
+                {
+                    SmartLog.WriteLine(
+                        $"*** Invalid Checksum For Success/Complete Response (CheckSum {new[] {checkSum}.ToHex()}***");
+                }
+            }
+            else
+            {
+                checkSum = _responseBuffer.Take(_responseBuffer.Length - 1).ToArray().CheckSum();
+                if (checkSum != _responseBuffer[_responseBuffer.Length - 1])
+                {
+                    SmartLog.WriteLine($"*** Invalid Checksum for  {_currentCommand.CommandName} Command Response ***");
+                }
+
+                var hexString = _responseBuffer.ToHex();
+                SmartLog.WriteLine(
+                    $"Response for {_currentCommand.CommandName} (CheckSum {new[] {checkSum}.ToHex()} Length:{_responseBuffer.Length}): {hexString}");
+            }
+
+
+
             _responseBuffer = null;
 
             //SmartLog.WriteLine(ToHex(respBuffer));
@@ -76,7 +128,22 @@ namespace Smart.Agent.Business
             //_dataPortConfig.Afe3ModelAndSn = responseBuffer.Skip(position + 8).Take(4).Reverse().ToArray();
             //_dataPortConfig.AfeWriteProtect = responseBuffer.Skip(position + 12).Take(4).Reverse().ToArray();
             //position = position + 16;
-            for (var i = 0; i < 6; i++)
+            int channel = 0;
+
+            if (_dataPortConfig.ActChannelsDataPacking.ToHex() == "21")
+            {
+                channel = 2;
+            }
+            else if (_dataPortConfig.ActChannelsDataPacking.ToHex() == "41")
+            {
+                channel = 4;
+            }
+            else if (_dataPortConfig.ActChannelsDataPacking.ToHex() == "61")
+            {
+                channel = 6;
+            }
+           
+            for (var i = 0; i < channel; i++)
             {
                 if (i > 0)
                 {
@@ -194,7 +261,7 @@ namespace Smart.Agent.Business
                 }
                 case "41":
                 {
-                    if (isUncompressed)
+                    if (!isUncompressed)
                     {
                         while (position <= 262)
                         {

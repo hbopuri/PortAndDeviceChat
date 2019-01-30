@@ -38,7 +38,7 @@ namespace Smart.Agent.Model
             CommandQueue.Add(new Queue
                 { SequenceId = 4, CommandName = "READ DATA PORT CONFIG", ExpectedPacketSize = 197, CommBytes = _command.ReadDataPortConfig(), MaxRetry = 5, RetryWait = _defaultRetryWait, WaitForNext = _defaultNextCommandWait, MoveNext = false });
             CommandQueue.Add(new Queue
-                { SequenceId = 5, CommandName = "COLLECT", ExpectedPacketSize = 277, CommBytes = _command.Collect(), MaxRetry = 15, RetryWait = _defaultRetryWait, WaitForNext = _defaultNextCommandWait, MoveNext = false });
+                { SequenceId = -3, CommandName = "COLLECT", ExpectedPacketSize = 277, CommBytes = _command.Collect(), MaxRetry = 15, RetryWait = _defaultRetryWait, WaitForNext = _defaultNextCommandWait, MoveNext = false });
             CommandQueue.Add(new Queue
                 { SequenceId = -2, CommandName = "POWER OFF", CommBytes = _command.PowerOff(), MaxRetry = 3, RetryWait = _defaultRetryWait, WaitForNext = _defaultNextCommandWait, MoveNext = false });
             CommandQueue.Add(new Queue

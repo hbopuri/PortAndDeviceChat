@@ -1,4 +1,5 @@
 ﻿using System.Linq;
+using Smart.Agent.Helper;
 
 namespace Smart.Agent.Business
 {
@@ -10,18 +11,14 @@ namespace Smart.Agent.Business
         {
             BoardId = id;
         }
-        public static byte ComputeAdditionChecksum(byte[] data)
-        {
-            long longSum = data.Sum(x => (long)x);
-            return unchecked((byte)longSum);
-        }
+        
         public byte[] If()
         {
             var writeBuffer = new byte[4];
             writeBuffer[0] = BoardId;
             writeBuffer[1] = 0x03;
             writeBuffer[2] = 0x03;
-            writeBuffer[3] = ComputeAdditionChecksum(writeBuffer);
+            writeBuffer[3] = writeBuffer.CheckSum();
             return writeBuffer;
         }
 
@@ -32,7 +29,7 @@ namespace Smart.Agent.Business
             writeBuffer[1] = 0x04;
             writeBuffer[2] = 0x02;
             writeBuffer[3] = 0x01;
-            writeBuffer[4] = ComputeAdditionChecksum(writeBuffer);
+            writeBuffer[4] = writeBuffer.CheckSum();
             return writeBuffer;
         }
 
@@ -51,7 +48,7 @@ namespace Smart.Agent.Business
             writeBuffer[9] = 0x00;
             writeBuffer[10] = 0x00;
             writeBuffer[11] = 0x00;
-            writeBuffer[12] = ComputeAdditionChecksum(writeBuffer);
+            writeBuffer[12] = writeBuffer.CheckSum();
             return writeBuffer;
         }
 
@@ -70,7 +67,7 @@ namespace Smart.Agent.Business
             writeBuffer[9] = 0x0F;
             writeBuffer[10] = 0x00;
             writeBuffer[11] = 0x00;
-            writeBuffer[12] = ComputeAdditionChecksum(writeBuffer);
+            writeBuffer[12] = writeBuffer.CheckSum();
             return writeBuffer;
         }
 
@@ -81,7 +78,7 @@ namespace Smart.Agent.Business
             writeBuffer[1] = 0x04;
             writeBuffer[2] = 0x02;
             writeBuffer[3] = 0x02;
-            writeBuffer[4] = ComputeAdditionChecksum(writeBuffer);
+            writeBuffer[4] = writeBuffer.CheckSum();
             return writeBuffer;
         }
 
@@ -100,7 +97,7 @@ namespace Smart.Agent.Business
             writeBuffer[9] = 0x0A;
             writeBuffer[10] = 0x00;
             writeBuffer[11] = 0x00;
-            writeBuffer[12] = ComputeAdditionChecksum(writeBuffer);
+            writeBuffer[12] = writeBuffer.CheckSum();
             return writeBuffer;
         }
 

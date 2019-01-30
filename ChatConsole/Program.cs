@@ -52,10 +52,15 @@ namespace ChatConsole
             SmartPort smartPort = new SmartPort();
             smartPort.Init(_boardId, selectedComPort.Name);
             smartPort.Start();
-            var sensors = smartPort.Collect();
-            foreach (var sensor in sensors)
+            SmartLog.WriteLine("Press 1 to Collect");
+            while (int.TryParse(Console.ReadLine(), out var reRun) && reRun==1)
             {
-                SmartLog.WriteLine($"{sensor.Type}:{sensor.Average} for {sensor.Data.Count} samples");
+                var sensors = smartPort.Collect();
+                foreach (var sensor in sensors)
+                {
+                    SmartLog.WriteLine($"{sensor.Type}:{sensor.Average} for {sensor.Data.Count} samples");
+                }
+                SmartLog.WriteLine("Press (1) to ReCollect (0) to move next");
             }
 
             _smartDevice = new SmartDevice();

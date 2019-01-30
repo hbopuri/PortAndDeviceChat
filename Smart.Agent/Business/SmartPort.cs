@@ -103,24 +103,29 @@ namespace Smart.Agent.Business
 
         private void ProcessReadConfig(byte[] responseBuffer)
         {
+            var first = responseBuffer.Take(12+22).ToArray().AddAtLast(0x00).AddAtLast(0x00).AddAtLast(0x00).AddAtLast(0x06);
+            var second = responseBuffer.Skip(12+22).Take(144).ToArray().AddAtLast(0x00).AddAtLast(0x00).AddAtLast(0x00).AddAtLast(0x04);
+            var third = responseBuffer.Skip(12+22+144).Take(responseBuffer.Length - 166).ToArray();
+            var finalBytes = Combine(first, second, third);
+            SmartLog.WriteLine(finalBytes.ToHex(true));
             var position = 12;
             _dataPortConfig = new DataPortConfig
             {
-                FirmwareVersion = responseBuffer.Skip(position).Take(2).Reverse().ToArray(),
-                SampleInterval = responseBuffer.Skip(position+2).Take(2).Reverse().ToArray(),
-                PreTriggerSamples = responseBuffer.Skip(position+4).Take(1).Reverse().ToArray(),
-                ModeFlag = responseBuffer.Skip(position+5).Take(1).Reverse().ToArray(),
-                ModePeriod = responseBuffer.Skip(position+6).Take(2).Reverse().ToArray(),
-                ConfigTimestamp = responseBuffer.Skip(position+8).Take(4).Reverse().ToArray(),
-                TriggerThreshold = responseBuffer.Skip(position+12).Take(2).Reverse().ToArray(),
-                CommandModeTimeout = responseBuffer.Skip(position+14).Take(1).Reverse().ToArray(),
-                ActChannelsDataPacking = responseBuffer.Skip(position+15).Take(1).Reverse().ToArray(),
-                SleepModeBtOnTime = responseBuffer.Skip(position+16).Take(1).Reverse().ToArray(),
-                SleepModeBtOffTime = responseBuffer.Skip(position+17).Take(1).Reverse().ToArray(),
-                AmbientTemp = responseBuffer.Skip(position+18).Take(1).Reverse().ToArray(),
-                MspTemp = responseBuffer.Skip(position+19).Take(1).Reverse().ToArray(),
-                TriggerType = responseBuffer.Skip(position+20).Take(1).Reverse().ToArray(),
-                PowerFault = responseBuffer.Skip(position+21).Take(1).Reverse().ToArray()
+                FirmwareVersion = finalBytes.Skip(position).Take(2).Reverse().ToArray(),
+                SampleInterval = finalBytes.Skip(position+2).Take(2).Reverse().ToArray(),
+                PreTriggerSamples = finalBytes.Skip(position+4).Take(1).Reverse().ToArray(),
+                ModeFlag = finalBytes.Skip(position+5).Take(1).Reverse().ToArray(),
+                ModePeriod = finalBytes.Skip(position+6).Take(2).Reverse().ToArray(),
+                ConfigTimestamp = finalBytes.Skip(position+8).Take(4).Reverse().ToArray(),
+                TriggerThreshold = finalBytes.Skip(position+12).Take(2).Reverse().ToArray(),
+                CommandModeTimeout = finalBytes.Skip(position+14).Take(1).Reverse().ToArray(),
+                ActChannelsDataPacking = finalBytes.Skip(position+15).Take(1).Reverse().ToArray(),
+                SleepModeBtOnTime = finalBytes.Skip(position+16).Take(1).Reverse().ToArray(),
+                SleepModeBtOffTime = finalBytes.Skip(position+17).Take(1).Reverse().ToArray(),
+                AmbientTemp = finalBytes.Skip(position+18).Take(1).Reverse().ToArray(),
+                MspTemp = finalBytes.Skip(position+19).Take(1).Reverse().ToArray(),
+                TriggerType = finalBytes.Skip(position+20).Take(1).Reverse().ToArray(),
+                PowerFault = finalBytes.Skip(position+21).Take(1).Reverse().ToArray()
             };
             position = position + 22;
             //_dataPortConfig.Afe1ModelAndSn = responseBuffer.Skip(position).Take(4).Reverse().ToArray();
@@ -145,56 +150,56 @@ namespace Smart.Agent.Business
            
             for (var i = 0; i < channel; i++)
             {
-                if (i > 0)
-                {
+                //if (i > 0)
+                //{
+                //    _dataPortConfig.SensorChannels.Add(new SensorChannel
+                //    {
+                //        Active = responseBuffer.Skip(position).Take(1).Reverse().ToArray(),
+                //        Type = responseBuffer.Skip(position + 1).Take(1).Reverse().ToArray(),
+                //        Gain = responseBuffer.Skip(position + 2).Take(3).Reverse().ToArray(),
+                //        Offset = responseBuffer.Skip(position + 5).Take(4).Reverse().ToArray(),
+                //        SensitivityGageFactor = responseBuffer.Skip(position + 9).Take(2).Reverse().ToArray(),
+                //        AbsoluteR = responseBuffer.Skip(position + 11).Take(2).Reverse().ToArray(),
+                //        CalibrationTemp = responseBuffer.Skip(position + 13).Take(1).Reverse().ToArray(),
+                //        MonitoringTemp = responseBuffer.Skip(position + 14).Take(1).Reverse().ToArray(),
+                //        WriteCount = responseBuffer.Skip(position + 15).Take(1).Reverse().ToArray(),
+                //        SamplingFrequency = responseBuffer.Skip(position + 16).Take(1).Reverse().ToArray(),
+                //        Location = responseBuffer.Skip(position + 17).Take(1).Reverse().ToArray(),
+                //        Distance = responseBuffer.Skip(position + 18).Take(2).Reverse().ToArray(),
+                //        Diagnostic = responseBuffer.Skip(position + 20).Take(2).Reverse().ToArray(),
+                //        WriteFlagSerialNumber = responseBuffer.Skip(position + 22).Take(2).Reverse().ToArray()
+                //    });
+                //    position = position + 24;
+                //    _dataPortConfig.SensorChannels[i].Gain = _dataPortConfig.SensorChannels[i].Gain.AddAtLast(00);
+                //}
+                //else
+                //{
                     _dataPortConfig.SensorChannels.Add(new SensorChannel
                     {
-                        Active = responseBuffer.Skip(position).Take(1).Reverse().ToArray(),
-                        Type = responseBuffer.Skip(position + 1).Take(1).Reverse().ToArray(),
-                        Gain = responseBuffer.Skip(position + 2).Take(3).Reverse().ToArray(),
-                        Offset = responseBuffer.Skip(position + 5).Take(4).Reverse().ToArray(),
-                        SensitivityGageFactor = responseBuffer.Skip(position + 9).Take(2).Reverse().ToArray(),
-                        AbsoluteR = responseBuffer.Skip(position + 11).Take(2).Reverse().ToArray(),
-                        CalibrationTemp = responseBuffer.Skip(position + 13).Take(1).Reverse().ToArray(),
-                        MonitoringTemp = responseBuffer.Skip(position + 14).Take(1).Reverse().ToArray(),
-                        WriteCount = responseBuffer.Skip(position + 15).Take(1).Reverse().ToArray(),
-                        SamplingFrequency = responseBuffer.Skip(position + 16).Take(1).Reverse().ToArray(),
-                        Location = responseBuffer.Skip(position + 17).Take(1).Reverse().ToArray(),
-                        Distance = responseBuffer.Skip(position + 18).Take(2).Reverse().ToArray(),
-                        Diagnostic = responseBuffer.Skip(position + 20).Take(2).Reverse().ToArray(),
-                        WriteFlagSerialNumber = responseBuffer.Skip(position + 22).Take(2).Reverse().ToArray()
-                    });
-                    position = position + 24;
-                    _dataPortConfig.SensorChannels[i].Gain = _dataPortConfig.SensorChannels[i].Gain.AddAtLast(00);
-                }
-                else
-                {
-                    _dataPortConfig.SensorChannels.Add(new SensorChannel
-                    {
-                        Active = responseBuffer.Skip(position).Take(1).Reverse().ToArray(),
-                        Type = responseBuffer.Skip(position + 1).Take(1).Reverse().ToArray(),
-                        Gain = responseBuffer.Skip(position + 2).Take(4).Reverse().ToArray(),
-                        Offset = responseBuffer.Skip(position + 6).Take(4).Reverse().ToArray(),
-                        SensitivityGageFactor = responseBuffer.Skip(position + 10).Take(2).Reverse().ToArray(),
-                        AbsoluteR = responseBuffer.Skip(position + 12).Take(2).Reverse().ToArray(),
-                        CalibrationTemp = responseBuffer.Skip(position + 14).Take(1).Reverse().ToArray(),
-                        MonitoringTemp = responseBuffer.Skip(position + 15).Take(1).Reverse().ToArray(),
-                        WriteCount = responseBuffer.Skip(position + 16).Take(1).Reverse().ToArray(),
-                        SamplingFrequency = responseBuffer.Skip(position + 17).Take(1).Reverse().ToArray(),
-                        Location = responseBuffer.Skip(position + 18).Take(1).Reverse().ToArray(),
-                        Distance = responseBuffer.Skip(position + 19).Take(2).Reverse().ToArray(),
-                        Diagnostic = responseBuffer.Skip(position + 21).Take(2).Reverse().ToArray(),
-                        WriteFlagSerialNumber = responseBuffer.Skip(position + 23).Take(2).Reverse().ToArray()
+                        Active = finalBytes.Skip(position).Take(1).Reverse().ToArray(),
+                        Type = finalBytes.Skip(position + 1).Take(1).Reverse().ToArray(),
+                        Gain = finalBytes.Skip(position + 2).Take(4).Reverse().ToArray(),
+                        Offset = finalBytes.Skip(position + 6).Take(4).Reverse().ToArray(),
+                        SensitivityGageFactor = finalBytes.Skip(position + 10).Take(2).Reverse().ToArray(),
+                        AbsoluteR = finalBytes.Skip(position + 12).Take(2).Reverse().ToArray(),
+                        CalibrationTemp = finalBytes.Skip(position + 14).Take(1).Reverse().ToArray(),
+                        MonitoringTemp = finalBytes.Skip(position + 15).Take(1).Reverse().ToArray(),
+                        WriteCount = finalBytes.Skip(position + 16).Take(1).Reverse().ToArray(),
+                        SamplingFrequency = finalBytes.Skip(position + 17).Take(1).Reverse().ToArray(),
+                        Location = finalBytes.Skip(position + 18).Take(1).Reverse().ToArray(),
+                        Distance = finalBytes.Skip(position + 19).Take(2).Reverse().ToArray(),
+                        Diagnostic = finalBytes.Skip(position + 21).Take(2).Reverse().ToArray(),
+                        WriteFlagSerialNumber = finalBytes.Skip(position + 23).Take(2).Reverse().ToArray()
                     });
                     position = position + 25;
-                }
+                //}
             }
 
             //position == 173
-            _dataPortConfig.Afe1ModelAndSn = responseBuffer.Skip(position).Take(4).Reverse().ToArray();
-            _dataPortConfig.Afe2ModelAndSn = responseBuffer.Skip(position + 4).Take(4).Reverse().ToArray();
-            _dataPortConfig.Afe3ModelAndSn = responseBuffer.Skip(position + 8).Take(4).Reverse().ToArray();
-            _dataPortConfig.AfeWriteProtect = responseBuffer.Skip(position + 12).Take(4).Reverse().ToArray();
+            _dataPortConfig.Afe1ModelAndSn = finalBytes.Skip(position).Take(4).Reverse().ToArray();
+            _dataPortConfig.Afe2ModelAndSn = finalBytes.Skip(position + 4).Take(4).Reverse().ToArray();
+            _dataPortConfig.Afe3ModelAndSn = finalBytes.Skip(position + 8).Take(4).Reverse().ToArray();
+            _dataPortConfig.AfeWriteProtect = finalBytes.Skip(position + 12).Take(4).Reverse().ToArray();
 
             SmartLog.WriteLine("-- General and Diagnostics Only ---");
             SmartLog.WriteLine($"Firmware Version: {_dataPortConfig.FirmwareVersion.ToDecimal(0)}");

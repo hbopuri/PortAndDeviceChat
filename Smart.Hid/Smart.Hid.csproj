@@ -37,6 +37,9 @@
     <Reference Include="Hid.Net, Version=2.4.0.0, Culture=neutral, PublicKeyToken=918542c6e3a3318a, processorArchitecture=MSIL">
       <HintPath>..\packages\Hid.Net.2.4.0\lib\net45\Hid.Net.dll</HintPath>
     </Reference>
+    <Reference Include="mcp2210_dll_m_dotnetv4_x86">
+      <HintPath>lib\mcp2210_dll_m_dotnetv4_x86.dll</HintPath>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Xml.Linq" />
@@ -53,6 +56,7 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="SmartDevice.cs" />
     <Compile Include="SmartTrezor.cs" />
+    <Compile Include="UsbToSpiConverter.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
@@ -62,6 +66,9 @@
       <Project>{9f7bcef8-3f61-45d3-838b-83b320b9b4e3}</Project>
       <Name>Smart.Log</Name>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="lib\" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

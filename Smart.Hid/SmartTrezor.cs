@@ -73,7 +73,7 @@ namespace Smart.Hid
         public async Task<byte[]> WriteAndReadFromDeviceAsync()
         {
             //Create a buffer with 3 bytes (initialize)
-            var writeBuffer = new byte[64];
+            var writeBuffer = new byte[3];
             writeBuffer[0] = 0x3f;
             writeBuffer[1] = 0x23;
             writeBuffer[2] = 0x23;
@@ -82,39 +82,30 @@ namespace Smart.Hid
             return await TrezorDevice.WriteAndReadAsync(writeBuffer);
         }
 
-        public async Task<byte[]> WriteToIncrementAsync()
+        public async Task<byte[]> WriteToIncrementAsync(byte[] writeBuffer)
         {
             //GPIO-1 Chip Select (should become low) Strain Gage
             //Create a buffer with 3 bytes (initialize)
-            var writeBuffer = new byte[64];
-            writeBuffer[0] = 0x60;
-            writeBuffer[1] = 0x00;
-            writeBuffer[2] = 0x00;
+           
 
             //Write the data to the device
             return await TrezorDevice.WriteAndReadAsync(writeBuffer);
         }
 
-        public async Task<byte[]> WriteToDecrementAsync()
+        public async Task<byte[]> WriteToDecrementAsync(byte[] writeBuffer)
         {
             //GPIO-1 Chip Select (should become low) Strain Gage
             //Create a buffer with 3 bytes (initialize)
-            var writeBuffer = new byte[64];
-            writeBuffer[0] = 0xE0;
-            writeBuffer[1] = 0x00;
-            writeBuffer[2] = 0x00;
+           
 
             //Write the data to the device
             return await TrezorDevice.WriteAndReadAsync(writeBuffer);
         }
-        public async Task<byte[]> WriteToSaveAsync()
+        public async Task<byte[]> WriteToSaveAsync(byte[] writeBuffer)
         {
             //GPIO-1 Chip Select (should become low) Strain Gage
             //Create a buffer with 3 bytes (initialize)
-            var writeBuffer = new byte[64];
-            writeBuffer[0] = 0x20;
-            writeBuffer[1] = 0x00;
-            writeBuffer[2] = 0x00;
+           
 
             //Write the data to the device
             return await TrezorDevice.WriteAndReadAsync(writeBuffer);

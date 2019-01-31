@@ -2,6 +2,8 @@
 using System.Threading.Tasks;
 using Hid.Net.Windows;
 using Smart.Log;
+using Smart.Log.Helper;
+using Smart.Log.Model;
 using Usb.Net.Windows;
 
 namespace Smart.Hid
@@ -71,7 +73,8 @@ namespace Smart.Hid
             while (true)
             {
                 //Console.Clear();
-                SmartLog.WriteLine();
+                SmartLog.WriteLine("\nHID Menu");
+                SmartLog.WriteLine("--------------------------------------------------------");
                 SmartLog.WriteLine("1. Increment Connected Device");
                 SmartLog.WriteLine("2. Decrement Connected Device");
                 SmartLog.WriteLine("3. Save");
@@ -81,11 +84,14 @@ namespace Smart.Hid
                 if (consoleKey.KeyChar == '3') return 3;
             }
         }
-        public async Task Go(int menuOption)
+        public async Task<LoopResponse> Go(int menuOption)
         {
+            var loopResponse = new LoopResponse
+            {
+                Selection = menuOption
+            };
             switch (menuOption)
             {
- 
                 case 1:
                     try
                     {
@@ -98,8 +104,8 @@ namespace Smart.Hid
                         Console.Clear();
                         SmartLog.WriteLine(ex.ToString());
                     }
-                    //Console.ReadKey();
-                    break;
+
+                    return await Task.FromResult(loopResponse);
                 case 2:
                     try
                     {
@@ -112,8 +118,7 @@ namespace Smart.Hid
                         Console.Clear();
                         SmartLog.WriteLine(ex.ToString());
                     }
-                   // Console.ReadKey();
-                    break;
+                    return await Task.FromResult(loopResponse);
                 case 3:
                     try
                     {
@@ -126,33 +131,41 @@ namespace Smart.Hid
                         Console.Clear();
                         SmartLog.WriteLine(ex.ToString());
                     }
-                    //Console.ReadKey();
-                    break;
+                    return await Task.FromResult(loopResponse);
             }
+            return await Task.FromResult(loopResponse);
         }
-        private static async Task IncrementAsync()
+        public static async Task IncrementAsync()
         {
-            var bytes = await DeviceConnectionExample.WriteToIncrementAsync();
-            Console.Clear();
-            SmartLog.WriteLine("Increment Command Passed");
-            SmartLog.WriteLine("Device connected. Output:");
-            DisplayData(bytes);
+            var writeBuffer = new byte[3];
+            writeBuffer[0] = 0x60;
+            writeBuffer[1] = 0x00;
+            writeBuffer[2] = 0x00;
+            var responseBytes = await DeviceConnectionExample.WriteToIncrementAsync(writeBuffer);
+            SmartLog.WriteLine($"Increment Command:\n\t{writeBuffer.ToHex()}");
+            SmartLog.WriteLine($"Device Output:\n\t{responseBytes.ToHex()}");
         }
-        private static async Task DecrementAsync()
+        public static async Task DecrementAsync()
         {
-            var bytes = await DeviceConnectionExample.WriteToDecrementAsync();
-            Console.Clear();
-            SmartLog.WriteLine("Decrement Command Passed");
-            SmartLog.WriteLine("Device connected. Output:");
-            DisplayData(bytes);
+            var writeBuffer = new byte[3];
+            writeBuffer[0] = 0xE0;
+            writeBuffer[1] = 0x00;
+            writeBuffer[2] = 0x00;
+            var responseBytes = await DeviceConnectionExample.WriteToDecrementAsync(writeBuffer);
+            SmartLog.WriteLine($"Decrement Command:\n\t{writeBuffer.ToHex()}");
+            SmartLog.WriteLine($"Device Output:\n\t{responseBytes.ToHex()}");
         }
-        private static async Task SaveAsync()
+        public static async Task SaveAsync()
         {
-            var bytes = await DeviceConnectionExample.WriteToSaveAsync();
-            Console.Clear();
-            SmartLog.WriteLine("Increment Command Passed");
-            SmartLog.WriteLine("Device connected. Output:");
-            DisplayData(bytes);
+            var writeBuffer = new byte[3];
+            writeBuffer[0] = 0x20;
+            writeBuffer[1] = 0x00;
+            writeBuffer[2] = 0x00;
+            var responseBytes = await DeviceConnectionExample.WriteToSaveAsync(writeBuffer);
+            //Console.Clear();
+            SmartLog.WriteLine($"Save Command:\n\t{writeBuffer.ToHex()}");
+            SmartLog.WriteLine($"Device Output:\n\t{responseBytes.ToHex()}");
+            //DisplayData(bytes);
         }
     }
 }

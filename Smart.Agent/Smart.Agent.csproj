@@ -45,16 +45,22 @@
     <Compile Include="Business\Command.cs" />
     <Compile Include="Business\SmartPort.cs" />
     <Compile Include="Helper\ComPortInfo.cs" />
-    <Compile Include="Helper\Convertor.cs" />
     <Compile Include="Helper\ProcessConnection.cs" />
     <Compile Include="Helper\SerialWrapper.cs" />
+    <Compile Include="Helper\UsbDevice.cs" />
     <Compile Include="Model\DataPortConfig.cs" />
+    <Compile Include="Model\LoopResponse.cs" />
     <Compile Include="Model\Queue.cs" />
     <Compile Include="Model\Sensor.cs" />
     <Compile Include="Model\SensorChannel.cs" />
+    <Compile Include="Model\UsbDeviceInfo.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\Smart.Hid\Smart.Hid.csproj">
+      <Project>{2f4bf948-460c-4bde-8978-a27d65ad12ad}</Project>
+      <Name>Smart.Hid</Name>
+    </ProjectReference>
     <ProjectReference Include="..\Smart.Log\Smart.Log.csproj">
       <Project>{9f7bcef8-3f61-45d3-838b-83b320b9b4e3}</Project>
       <Name>Smart.Log</Name>

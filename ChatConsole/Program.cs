@@ -1,10 +1,12 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
-using System.Threading;
 using Smart.Agent.Business;
 using Smart.Agent.Helper;
+using Smart.Agent.Model;
 using Smart.Hid;
 using Smart.Log;
+using Smart.Log.Helper;
 
 namespace ChatConsole
 {
@@ -12,62 +14,86 @@ namespace ChatConsole
     {
         private static byte _boardId;
         private static SmartDevice _smartDevice;
+        private static SmartPort _smartPort;
+        private static string _defaultComPort;
+
         [STAThread]
         // ReSharper disable once UnusedParameter.Local
         static void Main(string[] args)
         {
             Console.Clear();
-            SmartLog.WriteLine("Available COM ports\n");
-            SmartLog.WriteLine("--------------------------------------------------------\n");
-            var comports = ComPortInfo.GetComPortsInfo();
-            int i = 1;
-            int selectedOption;
-            comports.ForEach(x =>
-            {
-                SmartLog.WriteLine($"{i}) {x.Name}:{x.Description}");
-                i++;
-            });
-            SmartLog.WriteLine("\n");
-            SmartLog.WriteLine("Select COM Port (Example: Type 1 and press enter for first COM port)\n");
-            while (!int.TryParse(Console.ReadLine(), out selectedOption)
-                   || (comports.ElementAtOrDefault(selectedOption - 1) == null))
-            {
-                SmartLog.WriteLine("Invalid Entry\nPlease Enter from available options");
-            }
-
-            var selectedComPort = comports.ElementAtOrDefault(selectedOption - 1);
-            if (selectedComPort == null)
-            {
-                SmartLog.WriteLine("Invalid Entry\nPlease Enter from available options");
-                Console.ReadKey();
+            DrawCircle(1);
+            Greet();
+            Init();
+            if (!DetectComPort())
                 return;
-            }
-            SmartLog.WriteLine("Please Enter Interface Board Id (in Hex)\n");
-            while (!StringToByteArray(Console.ReadLine()))
-            {
-                SmartLog.WriteLine($"Invalid Hex. Please re-enter\n");
-            }
-
-
-            SmartPort smartPort = new SmartPort();
-            smartPort.Init(_boardId, selectedComPort.Name);
-            smartPort.Start();
-            SmartLog.WriteLine("Press 1 to Collect");
-            while (int.TryParse(Console.ReadLine(), out var reRun) && reRun==1)
-            {
-                var sensors = smartPort.Collect();
-                foreach (var sensor in sensors)
-                {
-                    SmartLog.WriteLine($"{sensor.Type}:{sensor.Average} for {sensor.Data.Count} samples");
-                }
-                SmartLog.WriteLine("Press (1) to ReCollect (0) to move next");
-            }
-
-            _smartDevice = new SmartDevice();
+            GetBoardId();
+            Console.WriteLine();
             _smartDevice.Init();
-            var task = _smartDevice.Go(menuOption: _smartDevice.Menu());
-            new ManualResetEvent(false).WaitOne();
+            _smartPort.Init(_boardId, _defaultComPort);
+            _smartPort.Start();
+            var portTask = _smartPort.Go(menuOption: _smartPort.Menu());
+            if (portTask.Result.Selection == 1)
+            {
+                if (portTask.Result.ReturnObject != null)
+                {
+                    foreach (var sensor in (List<Sensor>) portTask.Result.ReturnObject)
+                    {
+                        if (sensor.Data != null && sensor.Data.Any())
+                        {
+                            SmartLog.WriteLine(
+                                $"{sensor.Afe} ({sensor.Data.Count} samples):\n\tAccelerometer:{Math.Truncate(sensor.Data.Average(x => x.AccelerometerValue))}" +
+                                $"\n\tStrain:{Math.Truncate(sensor.Data.Average(x => x.StrainValue))}");
+                            //$"\n\t{Math.Truncate(sensor.Data.Average(x => x.AccelerometerValueLab))}(LabVIEW)");
+                        }
+                    }
+                }
+            }
 
+            while (portTask.Result.Selection <= 2)
+            {
+                portTask = _smartPort.Go(menuOption: _smartPort.Menu());
+                if (portTask.Result.Selection == 1) //Collect Command
+                {
+                    if (portTask.Result.ReturnObject != null)
+                    {
+                        foreach (var sensor in (List<Sensor>) portTask.Result.ReturnObject)
+                        {
+                            if (sensor.Data != null && sensor.Data.Any())
+                            {
+                                SmartLog.WriteLine(
+                                    $"{sensor.Afe} ({sensor.Data.Count} samples):\n\tAccelerometer:{Math.Truncate(sensor.Data.Average(x => x.AccelerometerValue))}" +
+                                    $"\n\tStrain:{Math.Truncate(sensor.Data.Average(x => x.StrainValue))}");
+                                //$"\n\t{Math.Truncate(sensor.Data.Average(x => x.AccelerometerValueLab))}(LabVIEW)");
+                            }
+                        }
+                    }
+                }
+
+                if (portTask.Result.Selection == 2) //Read Command
+                {
+
+                }
+
+                if (portTask.Result.Selection >= 5)
+                {
+                    portTask = _smartPort.Go(menuOption: 1); //Collect
+                    if (portTask.Result.ReturnObject != null)
+                    {
+                        foreach (var sensor in (List<Sensor>) portTask.Result.ReturnObject)
+                        {
+                            if (sensor.Data != null && sensor.Data.Any())
+                            {
+                                SmartLog.WriteLine(
+                                    $"{sensor.Afe} ({sensor.Data.Count} samples):\n\tAccelerometer:{Math.Truncate(sensor.Data.Average(x => x.AccelerometerValue))}" +
+                                    $"\n\tStrain:{Math.Truncate(sensor.Data.Average(x => x.StrainValue))}");
+                                //$"\n\t{Math.Truncate(sensor.Data.Average(x => x.AccelerometerValueLab))}(LabVIEW)");
+                            }
+                        }
+                    }
+                }
+
+            }
 
             SmartLog.WriteLine("Type exit to quite\n");
             while (!Convert.ToString(Console.ReadLine()).Equals("exit", StringComparison.OrdinalIgnoreCase))
@@ -77,7 +103,137 @@ namespace ChatConsole
 
             _smartDevice.Dispose();
 
-            smartPort.PowerOff();
+            _smartPort.PowerOff();
+        }
+        public static void DrawEllipse(char c, int centerX, int centerY, int width, int height)
+        {
+            for (int i = 0; i < width; i++)
+            {
+                int dx = i - width / 2;
+                int x = centerX + dx;
+
+                int h = (int)Math.Round(height * Math.Sqrt(width * width / 4.0 - dx * dx) / width);
+                for (int dy = 1; dy <= h; dy++)
+                {
+                    Console.SetCursorPosition(x, centerY + dy);
+                    Console.Write(c);
+                    Console.SetCursorPosition(x, centerY - dy);
+                    Console.Write(c);
+                }
+
+                if (h >= 0)
+                {
+                    Console.SetCursorPosition(x, centerY);
+                    Console.Write(c);
+                }
+            }
+        }
+        private static void DrawCircle(double radius)
+        {
+            //double radius;
+            double thickness = 0.4;
+            ConsoleColor BorderColor = ConsoleColor.Cyan;
+            Console.ForegroundColor = BorderColor;
+            char symbol = '*';
+            //do
+            //{
+            //    Console.Write("Enter radius:::: ");
+            //    if (!double.TryParse(Console.ReadLine(), out radius) || radius <= 0)
+            //    {
+            //        Console.WriteLine("radius have to be positive number");
+            //    }
+            //} while (radius <= 0);
+
+            Console.WriteLine();
+            double rIn = radius - thickness, rOut = radius + thickness;
+
+            for (double y = radius; y >= -radius; --y)
+            {
+                for (double x = -radius; x < rOut; x += 0.5)
+                {
+                    double value = x * x + y * y;
+                    if (value >= rIn * rIn && value <= rOut * rOut)
+                    {
+                        Console.Write(symbol);
+                    }
+                    else
+                    {
+                        Console.Write(" ");
+                    }
+                }
+
+                Console.WriteLine();
+            }
+        }
+
+        private static void Greet()
+        {
+            SmartLog.WriteLine("SmartPile AFE Bridge Balancing (Final CAL)");
+            SmartLog.WriteLine("--------------------------------------------------------");
+            SmartLog.WriteLine("--------------------------------------------------------");
+        }
+
+        private static void GetBoardId()
+        {
+            SmartLog.WriteLine("\nPlease Enter Interface Board Id (in Hex):");
+            bool isValidBoardId = false;
+            while (!isValidBoardId)
+            {
+                var bytes = Console.ReadLine().HexToByteArray();
+                if (bytes == null)
+                {
+                    SmartLog.WriteLine($"\nInvalid Hex. Please re-enter");
+                }
+                else
+                {
+                    _boardId = bytes[0];
+                    isValidBoardId = true;
+                }
+            }
+        }
+
+        private static bool DetectComPort()
+        {
+            _defaultComPort = _smartPort.GetPort("0403", "6001");
+            if (string.IsNullOrWhiteSpace(_defaultComPort))
+            {
+                SmartLog.WriteLine("Available COM ports");
+                SmartLog.WriteLine("--------------------------------------------------------");
+
+                int i = 1;
+                int selectedOption;
+                var comports = ComPortInfo.GetComPortsInfo();
+                comports.ForEach(x =>
+                {
+                    SmartLog.WriteLine($"{i}) {x.Name}:{x.Description}");
+                    i++;
+                });
+                SmartLog.WriteLine("\nSelect COM Port (Example: Type 1 and press enter for first COM port):");
+                while (!int.TryParse(Console.ReadLine(), out selectedOption)
+                       || (comports.ElementAtOrDefault(selectedOption - 1) == null))
+                {
+                    SmartLog.WriteLine("Invalid Entry\nPlease Enter from available options");
+                }
+
+                var selectedComPort = comports.ElementAtOrDefault(selectedOption - 1);
+                if (selectedComPort == null)
+                {
+                    SmartLog.WriteLine("Invalid Entry\nPlease Enter from available options");
+                    Console.ReadKey();
+                    return false;
+                }
+
+                _defaultComPort = selectedComPort.Name;
+            }
+
+            return true;
+        }
+
+        private static void Init()
+        {
+           
+            _smartPort = new SmartPort();
+            _smartDevice = new SmartDevice();
         }
 
         public static bool StringToByteArray(string hex)

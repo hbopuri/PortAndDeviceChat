@@ -1,5 +1,4 @@
-﻿using System.Linq;
-using Smart.Agent.Helper;
+﻿using Smart.Log.Helper;
 
 namespace Smart.Agent.Business
 {

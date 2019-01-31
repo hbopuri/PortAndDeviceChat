@@ -13,7 +13,7 @@ namespace ChatConsole
     class Program
     {
         private static byte _boardId;
-        private static SmartDevice _smartDevice;
+        //private static SmartDevice _smartDevice;
         private static SmartPort _smartPort;
         private static string _defaultComPort;
 
@@ -29,7 +29,7 @@ namespace ChatConsole
                 return;
             GetBoardId();
             Console.WriteLine();
-            _smartDevice.Init();
+            //_smartDevice.Init();
             _smartPort.Init(_boardId, _defaultComPort);
             _smartPort.Start();
             var portTask = _smartPort.Go(menuOption: _smartPort.Menu());
@@ -101,7 +101,7 @@ namespace ChatConsole
                 SmartLog.WriteLine("Unknown command\n");
             }
 
-            _smartDevice.Dispose();
+            //_smartDevice.Dispose();
 
             _smartPort.PowerOff();
         }
@@ -233,7 +233,7 @@ namespace ChatConsole
         {
            
             _smartPort = new SmartPort();
-            _smartDevice = new SmartDevice();
+            //_smartDevice = new SmartDevice();
         }
 
         public static bool StringToByteArray(string hex)

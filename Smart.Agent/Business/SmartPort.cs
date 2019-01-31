@@ -21,6 +21,8 @@ namespace Smart.Agent.Business
         private byte[] _responseBuffer;
         private DataPortConfig _dataPortConfig;
         private List<Sensor> _sensors;
+        private byte _boardId;
+        private string _comPortName;
 
         private byte[] Combine(params byte[][] arrays)
         {
@@ -518,8 +520,10 @@ namespace Smart.Agent.Business
             //SmartLog.WriteLine(response);
         }
 
-        public void Init(byte interfaceId, string commPort = "COM6")
+        public void Init(byte interfaceId, string commPort)
         {
+            _boardId = interfaceId;
+            _comPortName = commPort;
             _port = new SerialPort(commPort,
                 9600, Parity.None, 8, StopBits.One);
             _port.DataReceived += port_DataReceived;
@@ -536,8 +540,12 @@ namespace Smart.Agent.Business
             {
                 ExecuteCommand(queue);
             }
-
-            //SmartLog.WriteLine("--- Completed the Command Queue ---");
+        }
+        public void ClosePort()
+        {
+            if (_port.IsOpen)
+                _port.Close();
+            SmartLog.WriteLine($"Closed: {_port.PortName}");
         }
 
         private void ExecuteCommand(Queue queue)
@@ -585,6 +593,11 @@ namespace Smart.Agent.Business
                 case 1:
                     try
                     {
+                        //if (!_port.IsOpen)
+                        //{
+                        //    Init(_boardId, _comPortName);
+                        //    Start();
+                        //}
                         loopResponse.ReturnObject = Collect();
                     }
                     catch (Exception ex)
@@ -633,7 +646,11 @@ namespace Smart.Agent.Business
                 case 5:
                     try
                     {
-                        await SmartDevice.IncrementAsync();
+                        //PowerOff();
+                        //ClosePort();
+                        //await SmartDevice.IncrementAsync();
+                        //await UsbToSpiConverter.Init();
+                        await UsbToSpiConverter.Increment();
                     }
                     catch (Exception ex)
                     {
@@ -645,6 +662,7 @@ namespace Smart.Agent.Business
                 case 6:
                     try
                     {
+                        ClosePort();
                         await SmartDevice.DecrementAsync();
                     }
                     catch (Exception ex)
@@ -657,6 +675,7 @@ namespace Smart.Agent.Business
                 case 7:
                     try
                     {
+                        ClosePort();
                         await SmartDevice.SaveAsync();
                     }
                     catch (Exception ex)

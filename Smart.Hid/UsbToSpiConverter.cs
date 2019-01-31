@@ -6,21 +6,19 @@ namespace Smart.Hid
     public class UsbToSpiConverter
     {
         /**** Constants ****/
-        public const ushort DEFAULT_VID = 0x4d8;
-        public const ushort DEFAULT_PID = 0xde;
+        public const ushort DefaultVid = 0x4d8;
+        public const ushort DefaultPid = 0xde;
 
         public static int Init()
         {
-            int devCount = MCP2210.M_Mcp2210_GetConnectedDevCount(DEFAULT_VID, DEFAULT_PID);
+            int devCount = MCP2210.M_Mcp2210_GetConnectedDevCount(DefaultVid, DefaultPid);
             Console.WriteLine(devCount + " devices found");
             if (devCount > 0)
             {
                 StringBuilder path = new StringBuilder();
-                IntPtr deviceHandle = new IntPtr();
-                int res;
 
-                deviceHandle = MCP2210.M_Mcp2210_OpenByIndex(DEFAULT_VID, DEFAULT_PID, 0, path); //try to open the first device
-                res = MCP2210.M_Mcp2210_GetLastError();
+                var deviceHandle = MCP2210.M_Mcp2210_OpenByIndex(DefaultVid, DefaultPid, 0, path);
+                var res = MCP2210.M_Mcp2210_GetLastError();
                 if (res != MCP2210.M_E_SUCCESS)
                 {
                     Console.WriteLine("Failed to open connection");
@@ -28,16 +26,16 @@ namespace Smart.Hid
                 }
 
 
-                // set the SPI xfer params for I/O expander
-                uint pbaudRate2 = 1000000;
-                uint pidleCsVal2 = 0x1ff;
-                uint pactiveCsVal2 = 0x1ee; // GP4 and GP0 set as active low CS
-                uint pcsToDataDly2 = 0;
-                uint pdataToDataDly2 = 0;
-                uint pdataToCsDly2 = 0;
-                uint ptxferSize2 = 4;     // I/O expander xfer size set to 4
-                byte pspiMd2 = 0;
-                uint csmask4 = 0x10;  // set GP4 as CS
+                // set the SPI xFer params for I/O expander
+                uint baudRate2 = 1000000;
+                uint idleCsVal2 = 0x1ff;
+                uint activeCsVal2 = 0x1ee; // GP4 and GP0 set as active low CS
+                uint csToDataDly2 = 0;
+                uint dataToDataDly2 = 0;
+                uint dataToCsDly2 = 0;
+                uint txFerSize2 = 4;     // I/O expander xFer size set to 4
+                byte spiMd2 = 0;
+                uint csMask4 = 0x10;  // set GP4 as CS
 
                 byte[] txData = new byte[4], rxData = new byte[4];
                 // set the expander config params
@@ -46,10 +44,10 @@ namespace Smart.Hid
                 txData[2] = 0xff;
                 txData[3] = 0x00;
                 // send the data
-                // use the extended SPI xfer API first time in order to set all the parameters
-                // the subsequent xfers with the same device may use the simple API in order to save CPU cycles
-                res = MCP2210.M_Mcp2210_xferSpiDataEx(deviceHandle, txData, rxData, ref pbaudRate2, ref ptxferSize2, csmask4, ref pidleCsVal2, ref pactiveCsVal2, ref pcsToDataDly2,
-                    ref pdataToCsDly2, ref pdataToDataDly2, ref pspiMd2);
+                // use the extended SPI xFer API first time in order to set all the parameters
+                // the subsequent xFer with the same device may use the simple API in order to save CPU cycles
+                res = MCP2210.M_Mcp2210_xferSpiDataEx(deviceHandle, txData, rxData, ref baudRate2, ref txFerSize2, csMask4, ref idleCsVal2, ref activeCsVal2, ref csToDataDly2,
+                    ref dataToCsDly2, ref dataToDataDly2, ref spiMd2);
                 if (res != MCP2210.M_E_SUCCESS)
                 {
                     MCP2210.M_Mcp2210_Close(deviceHandle);
@@ -57,13 +55,13 @@ namespace Smart.Hid
                     return res;
                 }
 
-                ptxferSize2 = 3;          // set the txfer size to 3 -> don't write to mcp23s08 IODIR again
-                uint csmask_nochange = 0x10000000;   // preserve the CS selection and skip the GP8CE fix -> data xfer optimization
+                txFerSize2 = 3;          // set the txFer size to 3 -> don't write to mcp23s08 ioDir again
+                uint csMaskNoChange = 0x10000000;   // preserve the CS selection and skip the GP8CE fix -> data xFer optimization
                 for (byte i = 0; i < 255; i++)
                 {
                     txData[2] = i;
-                    // we don't need to change all SPI params so we can start using the faster xfer API
-                    res = MCP2210.M_Mcp2210_xferSpiData(deviceHandle, txData, rxData, ref pbaudRate2, ref ptxferSize2, csmask_nochange);
+                    // we don't need to change all SPI params so we can start using the faster xFer API
+                    res = MCP2210.M_Mcp2210_xferSpiData(deviceHandle, txData, rxData, ref baudRate2, ref txFerSize2, csMaskNoChange);
                     if (res != MCP2210.M_E_SUCCESS)
                     {
                         MCP2210.M_Mcp2210_Close(deviceHandle);
@@ -71,11 +69,11 @@ namespace Smart.Hid
                     }
                 }
 
-                // turn off the leds -> set the mcp23s08 iodir to 0xFF;
+                // turn off the led -> set the mcp23s08 ioDir to 0xFF;
                 txData[0] = 0x40;
                 txData[1] = 0x00;
                 txData[2] = 0xFF;
-                res = MCP2210.M_Mcp2210_xferSpiData(deviceHandle, txData, rxData, ref pbaudRate2, ref ptxferSize2, csmask_nochange);
+                res = MCP2210.M_Mcp2210_xferSpiData(deviceHandle, txData, rxData, ref baudRate2, ref txFerSize2, csMaskNoChange);
                 if (res != MCP2210.M_E_SUCCESS)
                 {
                     MCP2210.M_Mcp2210_Close(deviceHandle);

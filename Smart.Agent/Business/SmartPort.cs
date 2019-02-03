@@ -21,8 +21,6 @@ namespace Smart.Agent.Business
         private byte[] _responseBuffer;
         private DataPortConfig _dataPortConfig;
         private List<Sensor> _sensors;
-        private byte _boardId;
-        private string _comPortName;
 
         private byte[] Combine(params byte[][] arrays)
         {
@@ -270,101 +268,55 @@ namespace Smart.Agent.Business
 
             int position = 22;
             var isCompressed = _dataPortConfig.ActChannelsDataPacking.ToBitArray()[0];
-            switch (Convert.ToInt32(_dataPortConfig.ActChannelsDataPacking.ToHex(true)))
+            var channelMode = Convert.ToInt32(_dataPortConfig.ActChannelsDataPacking.ToHex(true));
+            var iterationsByChannel = channelMode == (int) ChannelMode.TwoChannel
+                ? 1
+                : channelMode == (int) ChannelMode.FourChannel
+                    ? 2
+                    : channelMode == (int) ChannelMode.SixChannel
+                        ? 3
+                        : 0;
+            if (isCompressed)
             {
-                case (int) ChannelMode.TwoChannel:
+                while (position < 262)
                 {
-                    break;
-                }
-                case (int) ChannelMode.FourChannel:
-                {
-                    if (isCompressed)
+                    for (int i = 0; i < iterationsByChannel; i++)
                     {
-                        while (position < 262)
-                        {
-                            var currentThree = responseBuffer.Skip(position).Take(3).ToArray();
-                            GetAccAndStrainInDouble(currentThree, out var accelerometer, out var strain);
-                            GetAccAndStrainInBytes(currentThree, out var accelerometerBytes, out var strainBytes);
-                            _sensors.First(x => x.Afe == Afe.Top).Data
-                                .Add(
-                                    new SensorData
-                                    {
-                                        Bytes = currentThree,
-                                        Accelerometer = accelerometer,
-                                        Strain = strain,
-                                        AccelerometerBytes = accelerometerBytes,
-                                        StrainBytes = strainBytes
-                                    });
-
-                            currentThree = responseBuffer.Skip(position + 3).Take(3).ToArray();
-                            GetAccAndStrainInDouble(currentThree, out accelerometer, out strain);
-                            GetAccAndStrainInBytes(currentThree, out accelerometerBytes, out strainBytes);
-                            _sensors.First(x => x.Afe == Afe.Tip).Data
-                                .Add(
-                                    new SensorData
-                                    {
-                                        Bytes = currentThree,
-                                        Accelerometer = accelerometer,
-                                        Strain = strain,
-                                        AccelerometerBytes = accelerometerBytes,
-                                        StrainBytes = strainBytes
-                                    });
-
-                            currentThree = responseBuffer.Skip(position + 6).Take(3).ToArray();
-                            GetAccAndStrainInDouble(currentThree, out accelerometer, out strain);
-                            GetAccAndStrainInBytes(currentThree, out accelerometerBytes, out strainBytes);
-                            _sensors.First(x => x.Afe == Afe.Top).Data
-                                .Add(
-                                    new SensorData
-                                    {
-                                        Bytes = currentThree,
-                                        Accelerometer = accelerometer,
-                                        Strain = strain,
-                                        AccelerometerBytes = accelerometerBytes,
-                                        StrainBytes = strainBytes
-                                    });
-
-                            currentThree = responseBuffer.Skip(position + 9).Take(3).ToArray();
-                            GetAccAndStrainInDouble(currentThree, out accelerometer, out strain);
-                            GetAccAndStrainInBytes(currentThree, out accelerometerBytes, out strainBytes);
-                            _sensors.First(x => x.Afe == Afe.Tip).Data
-                                .Add(
-                                    new SensorData
-                                    {
-                                        Bytes = currentThree,
-                                        Accelerometer = accelerometer,
-                                        Strain = strain,
-                                        AccelerometerBytes = accelerometerBytes,
-                                        StrainBytes = strainBytes
-                                    });
-
-                            position = position + 12;
-                        }
+                        var currentThree = responseBuffer.Skip(position).Take(3).ToArray();
+                        //GetAccAndStrainInDouble(currentThree, out var accelerometer, out var strain);
+                        GetAccAndStrainInBytes(currentThree, out var accelerometerBytes, out var strainBytes);
+                        _sensors.First(x => x.Afe == Afe.Top).Data
+                            .Add(
+                                new SensorData
+                                {
+                                    Bytes = currentThree,
+                                    //Accelerometer = accelerometer,
+                                    //Strain = strain,
+                                    AccelerometerBytes = accelerometerBytes,
+                                    StrainBytes = strainBytes
+                                });
+                        position = position + 3;
                     }
-                    else
-                    {
-                        while (position < 262)
-                        {
-                            _sensors.First(x => x.Afe == Afe.Top).Data.Add(
-                                new SensorData
-                                    {Bytes = responseBuffer.Skip(position).Take(2).ToArray()});
-                            _sensors.First(x => x.Afe == Afe.Top).Data.Add(
-                                new SensorData {Bytes = responseBuffer.Skip(position + 2).Take(2).ToArray()});
-                            _sensors.First(x => x.Afe == Afe.Tip).Data.Add(
-                                new SensorData
-                                    {Bytes = responseBuffer.Skip(position + 4).Take(2).ToArray()});
-                            _sensors.First(x => x.Afe == Afe.Tip).Data.Add(
-                                new SensorData
-                                    {Bytes = responseBuffer.Skip(position + 6).Take(2).ToArray()});
-                            position = position + 8;
-                        }
-                    }
-
-                    break;
                 }
-                case (int) ChannelMode.SixChannel:
+            }
+            else // uncompressed data
+            {
+                while (position < 262)
                 {
-                    break;
+                    for (int i = 0; i < iterationsByChannel; i++)
+                    {
+                        var currentTwo = responseBuffer.Skip(position).Take(2).ToArray();
+                        _sensors.First(x => x.Afe == Afe.Top).Data
+                            .Add(
+                                new SensorData
+                                {
+                                    Bytes = currentTwo,
+                                    AccelerometerBytes = responseBuffer.Skip(position).Take(2).ToArray(),
+                                    StrainBytes = responseBuffer.Skip(position + 2).Take(2).ToArray()
+                                });
+
+                        position = position + 4;
+                    }
                 }
             }
 
@@ -522,8 +474,6 @@ namespace Smart.Agent.Business
 
         public void Init(byte interfaceId, string commPort)
         {
-            _boardId = interfaceId;
-            _comPortName = commPort;
             _port = new SerialPort(commPort,
                 9600, Parity.None, 8, StopBits.One);
             _port.DataReceived += port_DataReceived;

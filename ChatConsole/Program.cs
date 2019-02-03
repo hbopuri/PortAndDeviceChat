@@ -22,7 +22,8 @@ namespace ChatConsole
         static void Main(string[] args)
         {
             Console.Clear();
-            DrawCircle(1);
+            
+            //DrawCircle(1);
             Greet();
             Init();
             if (!DetectComPort())
@@ -130,6 +131,12 @@ namespace ChatConsole
         }
         private static void DrawCircle(double radius)
         {
+            //SmartLog.WriteLine("--------------------------------------------------------");
+            //SmartLog.WriteLine("--------------------------------------------------------");
+            //SmartLog.WriteLine("--------------------------------------------------------");
+            //SmartLog.WriteLine("--------------------------------------------------------");
+            //SmartLog.WriteLine("--------------------------------------------------------");
+            //SmartLog.WriteLine("--------------------------------------------------------");
             //double radius;
             double thickness = 0.4;
             ConsoleColor BorderColor = ConsoleColor.Cyan;
@@ -168,6 +175,8 @@ namespace ChatConsole
 
         private static void Greet()
         {
+            ConsoleColor BorderColor = ConsoleColor.Cyan;
+            Console.ForegroundColor = BorderColor;
             SmartLog.WriteLine("SmartPile AFE Bridge Balancing (Final CAL)");
             SmartLog.WriteLine("--------------------------------------------------------");
             SmartLog.WriteLine("--------------------------------------------------------");
@@ -231,7 +240,8 @@ namespace ChatConsole
 
         private static void Init()
         {
-           
+            ConsoleColor BorderColor = ConsoleColor.White;
+            Console.ForegroundColor = BorderColor;
             _smartPort = new SmartPort();
             //_smartDevice = new SmartDevice();
         }

@@ -1,10 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using CommandLine;
 using Smart.Agent.Business;
+using Smart.Agent.Constant;
 using Smart.Agent.Helper;
 using Smart.Agent.Model;
-using Smart.Hid;
 using Smart.Log;
 using Smart.Log.Helper;
 
@@ -13,87 +14,103 @@ namespace ChatConsole
     class Program
     {
         private static byte _boardId;
-        //private static SmartDevice _smartDevice;
         private static SmartPort _smartPort;
         private static string _defaultComPort;
+        private static Options _options;
 
         [STAThread]
         // ReSharper disable once UnusedParameter.Local
         static void Main(string[] args)
         {
             Console.Clear();
-            
-            //DrawCircle(1);
+            Parser.Default.ParseArguments<Options>(args)
+                .WithParsed<Options>(o =>
+                {
+                    _options = o;
+                    if (o.PrintRequest)
+                    {
+                        Console.WriteLine($"Print Request enabled. Current Arguments: --req {o.PrintRequest}");
+                    }
+                    else
+                    {
+                        Console.WriteLine($"Print Request disabled. Current Arguments: --req {o.PrintRequest}");
+                    }
+                    if (o.PrintResponse)
+                    {
+                        Console.WriteLine($"Print Response enabled. Current Arguments: --res {o.PrintResponse}");
+                    }
+                    else
+                    {
+                        Console.WriteLine($"Print Response disabled. Current Arguments: --res {o.PrintResponse}");
+                    }
+                    if (o.PrintDataPortConfig)
+                    {
+                        Console.WriteLine($"Print Data Port Config enabled. Current Arguments: --conf {o.PrintDataPortConfig}");
+                    }
+                    else
+                    {
+                        Console.WriteLine($"Print Data Port Config disabled. Current Arguments: --conf {o.PrintDataPortConfig}");
+                    }
+                });
+
+            if (args != null && args.Any() && args[0].Equals("--help", StringComparison.InvariantCultureIgnoreCase))
+                return;
+            if (args != null && args.Any() && args[0].Equals("--version", StringComparison.InvariantCultureIgnoreCase))
+                return;
+
             Greet();
             Init();
             if (!DetectComPort())
                 return;
             GetBoardId();
             Console.WriteLine();
-            //_smartDevice.Init();
-            _smartPort.Init(_boardId, _defaultComPort);
-            _smartPort.Start();
-            var portTask = _smartPort.Go(menuOption: _smartPort.Menu());
-            if (portTask.Result.Selection == 1)
+            DataPortConfig defaultDataPortConfig = _smartPort.GetDefaultDataPortConfig();
+            _smartPort.Init(_boardId, _defaultComPort, _options);
+            if (!_smartPort.Start())
+                return;
+            var readDataPortConfig = _smartPort.ReadDataPortConfig();
+            CompareDataPortConfig(readDataPortConfig, defaultDataPortConfig);
+            var portTask = _smartPort.Go(menuOption: CommandType.Collect);
+            while (portTask.Result.Selection != CommandType.PowerOff)
             {
-                if (portTask.Result.ReturnObject != null)
+                switch (portTask.Result.Selection)
                 {
-                    foreach (var sensor in (List<Sensor>) portTask.Result.ReturnObject)
+                    case CommandType.Collect:
                     {
-                        if (sensor.Data != null && sensor.Data.Any())
+                        if (portTask.Result.ReturnObject != null)
                         {
-                            SmartLog.WriteLine(
-                                $"{sensor.Afe} ({sensor.Data.Count} samples):\n\tAccelerometer:{Math.Truncate(sensor.Data.Average(x => x.AccelerometerValue))}" +
-                                $"\n\tStrain:{Math.Truncate(sensor.Data.Average(x => x.StrainValue))}");
-                            //$"\n\t{Math.Truncate(sensor.Data.Average(x => x.AccelerometerValueLab))}(LabVIEW)");
+                            ConsoleColor borderColor = ConsoleColor.Yellow;
+                            Console.ForegroundColor = borderColor;
+                            foreach (var sensor in (List<Sensor>) portTask.Result.ReturnObject)
+                            {
+                                if (sensor.Data != null && sensor.Data.Any())
+                                {
+                                    SmartLog.WriteLine(
+                                        $"{sensor.Afe} ({sensor.Data.Count} samples): Accelerometer:{Math.Truncate(sensor.Data.Average(x => x.AccelerometerValue))}");
+                                    SmartLog.WriteLine(
+                                        $"{sensor.Afe} ({sensor.Data.Count} samples): Strain:{Math.Truncate(sensor.Data.Average(x => x.StrainValue))}");
+                                    }
+                            }
+
+                            borderColor = ConsoleColor.White;
+                            Console.ForegroundColor = borderColor;
                         }
+
+                        break;
+                    }
+                    case CommandType.ReadDataPort:
+                    {
+                        if (portTask.Result.ReturnObject != null)
+                        {
+                            var dataPortConfig = ((DataPortConfig)portTask.Result.ReturnObject);
+                            CompareDataPortConfig(dataPortConfig, defaultDataPortConfig);
+                        }
+
+                        break;
                     }
                 }
-            }
 
-            while (portTask.Result.Selection <= 2)
-            {
                 portTask = _smartPort.Go(menuOption: _smartPort.Menu());
-                if (portTask.Result.Selection == 1) //Collect Command
-                {
-                    if (portTask.Result.ReturnObject != null)
-                    {
-                        foreach (var sensor in (List<Sensor>) portTask.Result.ReturnObject)
-                        {
-                            if (sensor.Data != null && sensor.Data.Any())
-                            {
-                                SmartLog.WriteLine(
-                                    $"{sensor.Afe} ({sensor.Data.Count} samples):\n\tAccelerometer:{Math.Truncate(sensor.Data.Average(x => x.AccelerometerValue))}" +
-                                    $"\n\tStrain:{Math.Truncate(sensor.Data.Average(x => x.StrainValue))}");
-                                //$"\n\t{Math.Truncate(sensor.Data.Average(x => x.AccelerometerValueLab))}(LabVIEW)");
-                            }
-                        }
-                    }
-                }
-
-                if (portTask.Result.Selection == 2) //Read Command
-                {
-
-                }
-
-                if (portTask.Result.Selection >= 5)
-                {
-                    portTask = _smartPort.Go(menuOption: 1); //Collect
-                    if (portTask.Result.ReturnObject != null)
-                    {
-                        foreach (var sensor in (List<Sensor>) portTask.Result.ReturnObject)
-                        {
-                            if (sensor.Data != null && sensor.Data.Any())
-                            {
-                                SmartLog.WriteLine(
-                                    $"{sensor.Afe} ({sensor.Data.Count} samples):\n\tAccelerometer:{Math.Truncate(sensor.Data.Average(x => x.AccelerometerValue))}" +
-                                    $"\n\tStrain:{Math.Truncate(sensor.Data.Average(x => x.StrainValue))}");
-                                //$"\n\t{Math.Truncate(sensor.Data.Average(x => x.AccelerometerValueLab))}(LabVIEW)");
-                            }
-                        }
-                    }
-                }
-
             }
 
             SmartLog.WriteLine("Type exit to quite\n");
@@ -102,10 +119,40 @@ namespace ChatConsole
                 SmartLog.WriteLine("Unknown command\n");
             }
 
-            //_smartDevice.Dispose();
-
-            _smartPort.PowerOff();
+            //_smartPort.PowerOff();
         }
+
+        private static void CompareDataPortConfig(DataPortConfig dataPortConfig, DataPortConfig defaultDataPortConfig)
+        {
+            var isValid = true;
+            if (!dataPortConfig.ActChannelsDataPacking.SequenceEqual(defaultDataPortConfig.ActChannelsDataPacking))
+            {
+                isValid = false;
+                SmartLog.WriteLine(
+                    $"Act Channel Data Pack {dataPortConfig.ActChannelsDataPacking.ToHex()} not matching with default {defaultDataPortConfig.ActChannelsDataPacking.ToHex()}");
+            }
+
+            if (!dataPortConfig.SampleInterval.SequenceEqual(defaultDataPortConfig.SampleInterval))
+            {
+                isValid = false;
+                SmartLog.WriteLine(
+                    $"Sample Interval {dataPortConfig.SampleInterval.ToHex()} not matching with default {defaultDataPortConfig.SampleInterval.ToHex()}");
+            }
+
+            if (!dataPortConfig.FirmwareVersion.SequenceEqual(defaultDataPortConfig.FirmwareVersion))
+            {
+                isValid = false;
+                SmartLog.WriteLine(
+                    $"Firmware Version {dataPortConfig.FirmwareVersion.ToHex()} not matching with default {defaultDataPortConfig.FirmwareVersion.ToHex()}");
+            }
+
+            if (!isValid)
+            {
+                _smartPort.WriteDataPortConfig(_boardId, dataPortConfig, defaultDataPortConfig);
+            }
+        }
+
+
         public static void DrawEllipse(char c, int centerX, int centerY, int width, int height)
         {
             for (int i = 0; i < width; i++)
@@ -177,7 +224,7 @@ namespace ChatConsole
         {
             ConsoleColor BorderColor = ConsoleColor.Cyan;
             Console.ForegroundColor = BorderColor;
-            SmartLog.WriteLine("SmartPile AFE Bridge Balancing (Final CAL)");
+            SmartLog.WriteLine("\nSmartPile AFE Bridge Balancing (Final CAL)");
             SmartLog.WriteLine("--------------------------------------------------------");
             SmartLog.WriteLine("--------------------------------------------------------");
         }

@@ -13,6 +13,16 @@ namespace Smart.Log
             Console.WriteLine(value);
         }
 
+        public static void WriteErrorLine(string value)
+        {
+            ConsoleColor borderColor = ConsoleColor.Red;
+            Console.ForegroundColor = borderColor;
+            Console.WriteLine(value);
+            borderColor = ConsoleColor.White;
+            Console.ForegroundColor = borderColor;
+        }
+
+
         public static void WriteLine(string format, params object[] arg)
         {
             Console.WriteLine(format, arg);

@@ -3,6 +3,7 @@ using System.Collections;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Reflection.Emit;
 using System.Runtime.Serialization.Formatters.Binary;
 
 namespace Smart.Log.Helper
@@ -35,13 +36,32 @@ namespace Smart.Log.Helper
             //return hex.ToString().ToUpper();
             if (stripHyphens)
                 return BitConverter.ToString(ba).Replace("-", string.Empty);
-            return BitConverter.ToString(ba);
+            return BitConverter.ToString(ba).Replace("-"," ");
         }
 
         public static string ToBinary(this byte[] ba)
         {
             string[] b = ba.Select(x => Convert.ToString(x, 2).PadLeft(8, '0')).ToArray();
             return string.Join("-", b);
+        }
+
+        public static byte[] ToFourBytes(this DateTime dateTime)
+        {
+            byte[] b = new byte[] { 10, 12, 12, 12 };
+            DateTime now = dateTime;
+            var epoch = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+            TimeSpan tsEpoch = now - epoch;
+            int passedSeconds = (int)tsEpoch.TotalSeconds;
+            byte[] copyBytes = BitConverter.GetBytes(passedSeconds);
+            Array.Copy(copyBytes, 0, b, 0, 4);
+            return copyBytes;
+        }
+
+        public static DateTime ToDateTime(this byte[] dateBytes)
+        {
+            var epoch = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+            DateTime tCompare = epoch.AddSeconds(BitConverter.ToInt32(dateBytes, 0));
+            return tCompare;
         }
 
         public static BitArray ToBitArray(this byte[] ba)
@@ -58,7 +78,7 @@ namespace Smart.Log.Helper
 
         public static float ToFloat(this byte[] src, int offset)
         {
-            uint num = uint.Parse(src.ToHex(true), System.Globalization.NumberStyles.AllowHexSpecifier);
+            uint num = uint.Parse(src.ToHex(true), NumberStyles.AllowHexSpecifier);
 
             byte[] floatArray = BitConverter.GetBytes(num);
             float single = BitConverter.ToSingle(floatArray, 0);

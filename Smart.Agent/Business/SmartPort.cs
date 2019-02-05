@@ -5,6 +5,7 @@ using System.Linq;
 using System.Management;
 using System.Threading;
 using System.Threading.Tasks;
+using Smart.Agent.Constant;
 using Smart.Agent.Model;
 using Smart.Hid;
 using Smart.Log;
@@ -21,7 +22,7 @@ namespace Smart.Agent.Business
         private byte[] _responseBuffer;
         private DataPortConfig _dataPortConfig;
         private List<Sensor> _sensors;
-
+        private static Options _options;
         private byte[] Combine(params byte[][] arrays)
         {
             byte[] rv = new byte[arrays.Sum(a => a.Length)];
@@ -31,7 +32,6 @@ namespace Smart.Agent.Business
                 Buffer.BlockCopy(array, 0, rv, offset, array.Length);
                 offset += array.Length;
             }
-
             return rv;
         }
 
@@ -39,56 +39,72 @@ namespace Smart.Agent.Business
         {
             _responseBuffer = _responseBuffer == null ? respBuffer : Combine(_responseBuffer, respBuffer);
 
-            if (_responseBuffer.Length != _currentCommand.ExpectedPacketSize) return;
-            if (_currentCommand.ExpectedPacketSize == 197) // Read Config Response
+            if (_currentCommand.CommandType == CommandType.Collect)
+            {
+                Task.Run(() => SmartLog.WriteLine(_responseBuffer.ToHex()));
+            }
+
+            if (_responseBuffer.Length != _currentCommand.ExpectedPacketSize)
+                return;
+            if (_currentCommand.CommandType == CommandType.ReadDataPort)
             {
                 var readResponse = _responseBuffer;
                 Task.Run(() => ProcessReadConfig(readResponse));
             }
 
-            if (_currentCommand.ExpectedPacketSize == 277) // Collect Response
+            if (_currentCommand.CommandType == CommandType.Collect)
             {
                 var collectResponse = _responseBuffer;
                 Task.Run(() => ProcessSensorData(collectResponse));
             }
 
             byte checksum;
-            if (_currentCommand.ExpectedPacketSize == 277)
+            if (_currentCommand.CommandType == CommandType.Collect)
             {
                 var tempBuffer = _responseBuffer;
                 var acknowledgementArray = tempBuffer.Take(14).ToArray();
                 checksum = acknowledgementArray.Take(acknowledgementArray.Length - 1).ToArray().CheckSum();
-                //var hexString = acknowledgementArray.ToHex();
-                //SmartLog.WriteLine(
-                //    $"\tResponse for {_currentCommand.CommandName} Acknowledgement (Checksum {new[] {checksum}.ToHex()} Length:{acknowledgementArray.Length}): {hexString}");
+                if (_options.PrintResponse)
+                {
+                    var hexString = acknowledgementArray.ToHex();
+                    SmartLog.WriteLine(
+                        $"\tResponse for {_currentCommand.CommandName} Acknowledgement (Checksum {new[] { checksum }.ToHex()} Length:{acknowledgementArray.Length}): {hexString}");
+                }
 
                 if (acknowledgementArray[acknowledgementArray.Length - 1] != checksum)
                 {
-                    SmartLog.WriteLine(
+                    SmartLog.WriteErrorLine(
                         $"*** Invalid Checksum For Collect Acknowledgement Response (CheckSum {new[] {checksum}.ToHex()}***");
                 }
 
                 var sensorDataArray = tempBuffer.Skip(14).Take(249).ToArray();
                 checksum = sensorDataArray.Take(sensorDataArray.Length - 1).ToArray().CheckSum();
-                //hexString = sensorDataArray.ToHex();
-                //SmartLog.WriteLine(
-                //    $"\tResponse for {_currentCommand.CommandName} Sensor Data (Checksum {new[] {checksum}.ToHex()} Length:{sensorDataArray.Length}): {hexString}");
+                if (_options.PrintResponse)
+                {
+                    var hexString = sensorDataArray.ToHex();
+                    SmartLog.WriteLine(
+                        $"\tResponse for {_currentCommand.CommandName} Sensor Data (Checksum {new[] { checksum }.ToHex()} Length:{sensorDataArray.Length}): {hexString}");
+                }
 
                 if (sensorDataArray[sensorDataArray.Length - 1] != checksum)
                 {
-                    SmartLog.WriteLine(
+                    SmartLog.WriteErrorLine(
                         $"*** Invalid Checksum For Collect Sensor Data Response (Checksum {new[] {checksum}.ToHex()}***");
                 }
 
                 var completeArray = tempBuffer.Skip(263).Take(14).ToArray();
                 checksum = completeArray.Take(completeArray.Length - 1).ToArray().CheckSum();
-                //hexString = completeArray.ToHex();
-                //SmartLog.WriteLine(
-                //    $"\tResponse for {_currentCommand.CommandName} Success/Complete (Checksum {new[] {checksum}.ToHex()} Length:{completeArray.Length}): {hexString}");
+
+                if (_options.PrintResponse)
+                {
+                    var hexString = completeArray.ToHex();
+                    SmartLog.WriteLine(
+                        $"\tResponse for {_currentCommand.CommandName} Success/Complete (Checksum {new[] { checksum }.ToHex()} Length:{completeArray.Length}): {hexString}");
+                }
 
                 if (completeArray[completeArray.Length - 1] != checksum)
                 {
-                    SmartLog.WriteLine(
+                    SmartLog.WriteErrorLine(
                         $"*** Invalid Checksum For Success/Complete Response (Checksum {new[] {checksum}.ToHex()}***");
                 }
             }
@@ -100,9 +116,12 @@ namespace Smart.Agent.Business
                     SmartLog.WriteLine($"*** Invalid Checksum for  {_currentCommand.CommandName} Command Response ***");
                 }
 
-                //var hexString = _responseBuffer.ToHex();
-                //SmartLog.WriteLine(
-                //    $"\tResponse for {_currentCommand.CommandName} (CheckSum {new[] {checksum}.ToHex()} Length:{_responseBuffer.Length}): {hexString}");
+                if (_options.PrintResponse)
+                {
+                    var hexString = _responseBuffer.ToHex();
+                    SmartLog.WriteLine(
+                        $"\tResponse for {_currentCommand.CommandName} (CheckSum {new[] { checksum }.ToHex()} Length:{_responseBuffer.Length}): {hexString}");
+                }
             }
 
             SmartLog.WriteLine($"\tResponse Buffer Length: {_responseBuffer.Length}");
@@ -114,38 +133,36 @@ namespace Smart.Agent.Business
             _dataPortConfig = new DataPortConfig
             {
                 FirmwareVersion = responseBuffer.Skip(position).Take(2).Reverse().ToArray(),
-                SampleInterval = responseBuffer.Skip(position + 2).Take(2).Reverse().ToArray(),
+                SampleInterval = responseBuffer.Skip(position + 2).Take(2).Reverse().ToArray(), // 15-16
                 PreTriggerSamples = responseBuffer.Skip(position + 4).Take(1).ToArray(),
                 ModeFlag = responseBuffer.Skip(position + 5).Take(1).ToArray(),
                 ModePeriod = responseBuffer.Skip(position + 6).Take(2).Reverse().ToArray(),
                 ConfigTimestamp = responseBuffer.Skip(position + 8).Take(4).Reverse().ToArray(),
+                ConfigTimestampUtc = responseBuffer.Skip(position + 8).Take(4).Reverse().ToArray().ToDateTime(),
                 TriggerThreshold = responseBuffer.Skip(position + 12).Take(2).Reverse().ToArray(),
                 CommandModeTimeout = responseBuffer.Skip(position + 14).Take(1).ToArray(),
-                ActChannelsDataPacking = responseBuffer.Skip(position + 15).Take(1).ToArray(),
+                ActChannelsDataPacking = responseBuffer.Skip(position + 15).Take(1).ToArray(), //31
                 SleepModeBtOnTime = responseBuffer.Skip(position + 16).Take(1).ToArray(),
                 SleepModeBtOffTime = responseBuffer.Skip(position + 17).Take(1).ToArray(),
                 AmbientTemp = responseBuffer.Skip(position + 18).Take(1).ToArray(),
                 MspTemp = responseBuffer.Skip(position + 19).Take(1).ToArray(),
                 TriggerType = responseBuffer.Skip(position + 20).Take(1).ToArray(),
-                PowerFault = responseBuffer.Skip(position + 21).Take(1).ToArray()
+                PowerFault = responseBuffer.Skip(position + 21).Take(1).ToArray(),
+                CompleteResponseBuffer = responseBuffer
             };
             position = position + 22;
-            //_dataPortConfig.Afe1ModelAndSn = responseBuffer.Skip(position).Take(4).Reverse().ToArray();
-            //_dataPortConfig.Afe2ModelAndSn = responseBuffer.Skip(position + 4).Take(4).Reverse().ToArray();
-            //_dataPortConfig.Afe3ModelAndSn = responseBuffer.Skip(position + 8).Take(4).Reverse().ToArray();
-            //_dataPortConfig.AfeWriteProtect = responseBuffer.Skip(position + 12).Take(4).Reverse().ToArray();
-            //position = position + 16;
+
             int channel = 0;
 
-            if (_dataPortConfig.ActChannelsDataPacking.ToHex() == "21")
+            if (Convert.ToInt32(_dataPortConfig.ActChannelsDataPacking.ToHex()) ==  (int)ChannelMode.TwoChannel)
             {
                 channel = 2;
             }
-            else if (_dataPortConfig.ActChannelsDataPacking.ToHex() == "41")
+            else if (Convert.ToInt32(_dataPortConfig.ActChannelsDataPacking.ToHex()) == (int)ChannelMode.FourChannel)
             {
                 channel = 4;
             }
-            else if (_dataPortConfig.ActChannelsDataPacking.ToHex() == "61")
+            else if (Convert.ToInt32(_dataPortConfig.ActChannelsDataPacking.ToHex()) == (int)ChannelMode.SixChannel)
             {
                 channel = 6;
             }
@@ -177,7 +194,8 @@ namespace Smart.Agent.Business
             _dataPortConfig.Afe2ModelAndSn = responseBuffer.Skip(position + 4).Take(4).ToArray();
             _dataPortConfig.Afe3ModelAndSn = responseBuffer.Skip(position + 8).Take(4).ToArray();
             _dataPortConfig.AfeWriteProtect = responseBuffer.Skip(position + 12).Take(4).ToArray();
-
+            if(!_options.PrintDataPortConfig)
+                return;
             SmartLog.WriteLine("-- General and Diagnostics Only ---");
             SmartLog.WriteLine($"\tFirmware Version: {_dataPortConfig.FirmwareVersion.ToDecimal(0)}");
             SmartLog.WriteLine($"\tSample Interval: {_dataPortConfig.SampleInterval.ToDecimal(0)}");
@@ -185,6 +203,7 @@ namespace Smart.Agent.Business
             SmartLog.WriteLine($"\tMode Flag: {_dataPortConfig.ModeFlag.ToHex()}");
             SmartLog.WriteLine($"\tMode Period: {_dataPortConfig.ModePeriod.ToDecimal(0)}");
             SmartLog.WriteLine($"\tConfig Timestamp: {_dataPortConfig.ConfigTimestamp.ToDecimal(0)}");
+            SmartLog.WriteLine($"\tConfig Timestamp (UTC): {_dataPortConfig.ConfigTimestamp.ToDateTime()}");
             SmartLog.WriteLine($"\tTrigger Threshold: {_dataPortConfig.TriggerThreshold.ToDecimal(0)}");
             SmartLog.WriteLine($"\tCommandModeTimeout: {_dataPortConfig.CommandModeTimeout.ToDecimal(0)}");
             SmartLog.WriteLine($"\tActChannels DataPacking: {_dataPortConfig.ActChannelsDataPacking.ToHex()}");
@@ -283,19 +302,26 @@ namespace Smart.Agent.Business
                     for (int i = 0; i < iterationsByChannel; i++)
                     {
                         var currentThree = responseBuffer.Skip(position).Take(3).ToArray();
-                        //GetAccAndStrainInDouble(currentThree, out var accelerometer, out var strain);
                         GetAccAndStrainInBytes(currentThree, out var accelerometerBytes, out var strainBytes);
                         _sensors.First(x => x.Afe == Afe.Top).Data
                             .Add(
                                 new SensorData
                                 {
                                     Bytes = currentThree,
-                                    //Accelerometer = accelerometer,
-                                    //Strain = strain,
                                     AccelerometerBytes = accelerometerBytes,
                                     StrainBytes = strainBytes
                                 });
-                        position = position + 3;
+                        currentThree = responseBuffer.Skip(position+3).Take(3).ToArray();
+                        GetAccAndStrainInBytes(currentThree, out accelerometerBytes, out strainBytes);
+                        _sensors.First(x => x.Afe == Afe.Tip).Data
+                            .Add(
+                                new SensorData
+                                {
+                                    Bytes = currentThree,
+                                    AccelerometerBytes = accelerometerBytes,
+                                    StrainBytes = strainBytes
+                                });
+                        position = position + 6;
                     }
                 }
             }
@@ -305,17 +331,26 @@ namespace Smart.Agent.Business
                 {
                     for (int i = 0; i < iterationsByChannel; i++)
                     {
-                        var currentTwo = responseBuffer.Skip(position).Take(2).ToArray();
+                        var currentFour = responseBuffer.Skip(position).Take(4).ToArray();
                         _sensors.First(x => x.Afe == Afe.Top).Data
                             .Add(
                                 new SensorData
                                 {
-                                    Bytes = currentTwo,
+                                    Bytes = currentFour,
                                     AccelerometerBytes = responseBuffer.Skip(position).Take(2).ToArray(),
                                     StrainBytes = responseBuffer.Skip(position + 2).Take(2).ToArray()
                                 });
+                        currentFour = responseBuffer.Skip(position+4).Take(4).ToArray();
+                        _sensors.First(x => x.Afe == Afe.Tip).Data
+                            .Add(
+                                new SensorData
+                                {
+                                    Bytes = currentFour,
+                                    AccelerometerBytes = responseBuffer.Skip(position+4).Take(2).ToArray(),
+                                    StrainBytes = responseBuffer.Skip(position + 6).Take(2).ToArray()
+                                });
 
-                        position = position + 4;
+                        position = position + 8;
                     }
                 }
             }
@@ -472,8 +507,9 @@ namespace Smart.Agent.Business
             //SmartLog.WriteLine(response);
         }
 
-        public void Init(byte interfaceId, string commPort)
+        public void Init(byte interfaceId, string commPort, Options options)
         {
+            _options = options;
             _port = new SerialPort(commPort,
                 9600, Parity.None, 8, StopBits.One);
             _port.DataReceived += port_DataReceived;
@@ -481,16 +517,27 @@ namespace Smart.Agent.Business
             _commaQueue.LoadLcmQueue();
         }
 
-        public void Start()
+        public bool Start()
         {
-            if (!_port.IsOpen)
-                _port.Open();
-            SmartLog.WriteLine($"Opened: {_port.PortName}");
-            foreach (var queue in _commaQueue.CommandQueue.Where(x => x.SequenceId > 0).OrderBy(x => x.SequenceId))
+            try
             {
-                ExecuteCommand(queue);
+                if (!_port.IsOpen)
+                    _port.Open();
+                SmartLog.WriteLine($"Opened: {_port.PortName}");
+                foreach (var queue in _commaQueue.CommandQueue.Where(x => x.SequenceId > 0).OrderBy(x => x.SequenceId))
+                {
+                    ExecuteCommand(queue);
+                }
+
+                return true;
+            }
+            catch (Exception e)
+            {
+                SmartLog.WriteLine(e.Message);
+                return false;
             }
         }
+
         public void ClosePort()
         {
             if (_port.IsOpen)
@@ -508,7 +555,8 @@ namespace Smart.Agent.Business
             {
                 //SmartLog.WriteLine();
                 SmartLog.WriteLine($"***** Sending {queue.CommandName} Command *****");
-                SmartLog.WriteLine($"\tCommand: {queue.CommBytes.ToHex()}");
+                if(_options.PrintRequest)
+                    SmartLog.WriteLine($"\tCommand: {queue.CommBytes.ToHex()}");
                 try
                 {
                     _port.Write(command, 0, command.Length);
@@ -543,11 +591,6 @@ namespace Smart.Agent.Business
                 case 1:
                     try
                     {
-                        //if (!_port.IsOpen)
-                        //{
-                        //    Init(_boardId, _comPortName);
-                        //    Start();
-                        //}
                         loopResponse.ReturnObject = Collect();
                     }
                     catch (Exception ex)
@@ -560,7 +603,7 @@ namespace Smart.Agent.Business
                 case 2:
                     try
                     {
-                        ReadDataPortConfig();
+                        loopResponse.ReturnObject = ReadDataPortConfig();
                     }
                     catch (Exception ex)
                     {
@@ -582,24 +625,11 @@ namespace Smart.Agent.Business
 
                     return await Task.FromResult(loopResponse);
                 case 4:
-                    try
-                    {
-                        Start();
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.Clear();
-                        SmartLog.WriteLine(ex.ToString());
-                    }
-
+                    loopResponse.ReturnObject = Start();
                     return await Task.FromResult(loopResponse);
                 case 5:
                     try
                     {
-                        //PowerOff();
-                        //ClosePort();
-                        //await SmartDevice.IncrementAsync();
-                        //await UsbToSpiConverter.Init();
                         await UsbToSpiConverter.Increment();
                     }
                     catch (Exception ex)
@@ -612,7 +642,6 @@ namespace Smart.Agent.Business
                 case 6:
                     try
                     {
-                        ClosePort();
                         await SmartDevice.DecrementAsync();
                     }
                     catch (Exception ex)
@@ -625,8 +654,32 @@ namespace Smart.Agent.Business
                 case 7:
                     try
                     {
-                        ClosePort();
                         await SmartDevice.SaveAsync();
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.Clear();
+                        SmartLog.WriteLine(ex.ToString());
+                    }
+
+                    return await Task.FromResult(loopResponse);
+                case 8:
+                    try
+                    {
+                        PowerOff();
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.Clear();
+                        SmartLog.WriteLine(ex.ToString());
+                    }
+
+                    return await Task.FromResult(loopResponse);
+                case 9:
+                    try
+                    {
+                        var response = ReadDataPortConfig();
+                        WriteDataPortConfig(_currentCommand.CommBytes[0], response, GetDefaultDataPortConfig());
                     }
                     catch (Exception ex)
                     {
@@ -655,6 +708,8 @@ namespace Smart.Agent.Business
                 SmartLog.WriteLine("5. Increment AFE Device");
                 SmartLog.WriteLine("6. Decrement AFE Device");
                 SmartLog.WriteLine("7. Save AFE");
+                SmartLog.WriteLine("8. Power Off");
+                SmartLog.WriteLine("9. Force Write Date Port Config");
                 SmartLog.WriteLine("\nPlease select the option from above:");
                 var consoleKey = Console.ReadKey();
                 if (consoleKey.KeyChar == '1') return 1;
@@ -664,10 +719,12 @@ namespace Smart.Agent.Business
                 if (consoleKey.KeyChar == '5') return 5;
                 if (consoleKey.KeyChar == '6') return 6;
                 if (consoleKey.KeyChar == '7') return 7;
+                if (consoleKey.KeyChar == '8') return 8;
+                if (consoleKey.KeyChar == '9') return 9;
             }
         }
 
-        public List<Sensor> ReadDataPortConfig()
+        public DataPortConfig ReadDataPortConfig()
         {
             var collectCommand = _commaQueue.CommandQueue.FirstOrDefault(x =>
                 x.CommandName.Equals("READ DATA PORT CONFIG", StringComparison.OrdinalIgnoreCase));
@@ -677,7 +734,7 @@ namespace Smart.Agent.Business
                 ExecuteCommand(collectCommand);
             }
 
-            return _sensors;
+            return _dataPortConfig;
         }
 
         public List<Sensor> Collect()
@@ -717,6 +774,63 @@ namespace Smart.Agent.Business
 
                 var port = portNames.FirstOrDefault(n => ports.Any(s => s.Caption.Contains(n)));
                 return port;
+            }
+        }
+
+        public DataPortConfig GetDefaultDataPortConfig()
+        {
+            return new DataPortConfig
+            {
+                FirmwareVersion = new byte[] {0x02, 0xBC},
+                ActChannelsDataPacking = new byte[] {0x41},
+                SampleInterval = new byte[] {0x00, 0x04}
+            };
+        }
+
+        public void WriteDataPortConfig(byte boardId, DataPortConfig received, DataPortConfig defaultSettings)
+        {
+            var complete = received.CompleteResponseBuffer;
+
+            complete[0] = boardId;
+            complete[1] = 0xC4;
+            complete[2] = 0x09;
+
+            complete[6] = 0xBB;
+            complete[7] = 0x00;
+            complete[8] = 0x00;
+            complete[9] = 0x11;
+
+
+            complete[12] = defaultSettings.FirmwareVersion[1];
+            complete[13] = defaultSettings.FirmwareVersion[0];
+
+            //complete[12] = 0x76;
+            //complete[13] = 0x02;
+
+            complete[14] = defaultSettings.SampleInterval[1];
+            complete[15] = defaultSettings.SampleInterval[0];
+            //complete[14] = 0x02;
+            //complete[15] = 0x00;
+
+            var currentUtcTime = DateTime.UtcNow.ToFourBytes();
+            complete[20] = currentUtcTime[3];
+            complete[21] = currentUtcTime[2];
+            complete[22] = currentUtcTime[1];
+            complete[23] = currentUtcTime[0];
+
+            //SmartLog.WriteErrorLine($"currentUtcTime: {currentUtcTime.ToDecimal(0)}");
+
+            complete[27] = defaultSettings.ActChannelsDataPacking[0];
+            //complete[27] = 0x21;
+
+            complete[complete.Length - 1] = complete.Take(complete.Length - 1).ToArray().CheckSum();
+
+            var writeDataPortCommand = _commaQueue.CommandQueue.FirstOrDefault(x =>
+                x.CommandName.Equals("WRITE DATA PORT CONFIG", StringComparison.OrdinalIgnoreCase));
+            if (writeDataPortCommand != null)
+            {
+                writeDataPortCommand.CommBytes = complete;
+                ExecuteCommand(writeDataPortCommand);
             }
         }
     }

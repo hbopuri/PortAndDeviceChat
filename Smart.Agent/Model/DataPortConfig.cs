@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 
 namespace Smart.Agent.Model
 {
@@ -10,6 +11,7 @@ namespace Smart.Agent.Model
         public byte[] ModeFlag { get; set; }
         public byte[] ModePeriod { get; set; }
         public byte[] ConfigTimestamp { get; set; }
+        public DateTime ConfigTimestampUtc { get; set; }
         public byte[] TriggerThreshold { get; set; }
         public byte[] CommandModeTimeout { get; set; }
         public byte[] ActChannelsDataPacking { get; set; }
@@ -26,5 +28,6 @@ namespace Smart.Agent.Model
         public byte[] Afe2ModelAndSn { get; set; }
         public byte[] Afe3ModelAndSn { get; set; }
         public byte[] AfeWriteProtect { get; set; }
+        public byte[] CompleteResponseBuffer { get; set; }
     }
 }

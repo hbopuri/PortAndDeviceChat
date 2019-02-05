@@ -5,13 +5,13 @@ using System.Runtime.InteropServices;
 // General Information about an assembly is controlled through the following
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
-[assembly: AssemblyTitle("ChatConsole")]
-[assembly: AssemblyDescription("")]
+[assembly: AssemblyTitle("AFE Bridge Balancing - Final CAL")]
+[assembly: AssemblyDescription("Author: Harsha Bopuri")]
 [assembly: AssemblyConfiguration("")]
-[assembly: AssemblyCompany("")]
-[assembly: AssemblyProduct("ChatConsole")]
-[assembly: AssemblyCopyright("Copyright © Harsha Bopuri 2019")]
-[assembly: AssemblyTrademark("")]
+[assembly: AssemblyCompany("Smart Structures Inc")]
+[assembly: AssemblyProduct("AFE Bridge Balancing")]
+[assembly: AssemblyCopyright("Copyright © SmartStructure 2019")]
+[assembly: AssemblyTrademark("SmartPile®")]
 [assembly: AssemblyCulture("")]
 
 // Setting ComVisible to false makes the types in this assembly not visible

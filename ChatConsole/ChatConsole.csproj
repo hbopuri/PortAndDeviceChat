@@ -50,15 +50,21 @@
   <PropertyGroup>
     <StartupObject>ChatConsole.Program</StartupObject>
   </PropertyGroup>
+  <PropertyGroup>
+    <ApplicationIcon>apple-touch-icon-57-precomposed.ico</ApplicationIcon>
+  </PropertyGroup>
   <ItemGroup>
+    <Reference Include="CommandLine, Version=2.4.3.0, Culture=neutral, PublicKeyToken=de6f01bd326f8c32, processorArchitecture=MSIL">
+      <HintPath>..\packages\CommandLineParser.2.4.3\lib\netstandard2.0\CommandLine.dll</HintPath>
+    </Reference>
     <Reference Include="Device.Net, Version=2.4.0.0, Culture=neutral, PublicKeyToken=918542c6e3a3318a, processorArchitecture=MSIL">
       <HintPath>..\packages\Device.Net.2.4.0\lib\net45\Device.Net.dll</HintPath>
     </Reference>
     <Reference Include="Hid.Net, Version=2.4.0.0, Culture=neutral, PublicKeyToken=918542c6e3a3318a, processorArchitecture=MSIL">
       <HintPath>..\packages\Hid.Net.2.4.0\lib\net45\Hid.Net.dll</HintPath>
     </Reference>
-    <Reference Include="HidSharp, Version=2.0.5.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\HidSharp.2.0.5\lib\net35\HidSharp.dll</HintPath>
+    <Reference Include="HidSharp, Version=2.0.8.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\packages\HidSharp.2.0.8\lib\net35\HidSharp.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
@@ -106,6 +112,14 @@
       <Project>{9f7bcef8-3f61-45d3-838b-83b320b9b4e3}</Project>
       <Name>Smart.Log</Name>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="apple-touch-icon-57-precomposed.ico" />
+    <Content Include="Assets\apple-touch-icon-114-precomposed.png" />
+    <Content Include="Assets\apple-touch-icon-144-precomposed.png" />
+    <Content Include="Assets\apple-touch-icon-57-precomposed.png" />
+    <Content Include="Assets\apple-touch-icon-72-precomposed.png" />
+    <Content Include="Assets\favicon.png" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

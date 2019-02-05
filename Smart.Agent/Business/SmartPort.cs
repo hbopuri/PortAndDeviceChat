@@ -288,30 +288,32 @@ namespace Smart.Agent.Business
             int position = 22;
             var isCompressed = _dataPortConfig.ActChannelsDataPacking.ToBitArray()[0];
             var channelMode = Convert.ToInt32(_dataPortConfig.ActChannelsDataPacking.ToHex(true));
-            var iterationsByChannel = channelMode == (int) ChannelMode.TwoChannel
-                ? 1
-                : channelMode == (int) ChannelMode.FourChannel
-                    ? 2
-                    : channelMode == (int) ChannelMode.SixChannel
-                        ? 3
-                        : 0;
+            //var iterationsByChannel = channelMode == (int) ChannelMode.TwoChannel
+            //    ? 1
+            //    : channelMode == (int) ChannelMode.FourChannel
+            //        ? 2
+            //        : channelMode == (int) ChannelMode.SixChannel
+            //            ? 3
+            //            : 0;
             if (isCompressed)
             {
                 while (position < 262)
                 {
-                    for (int i = 0; i < iterationsByChannel; i++)
+
+                    var currentThree = responseBuffer.Skip(position).Take(3).ToArray();
+                    GetAccAndStrainInBytes(currentThree, out var accelerometerBytes, out var strainBytes);
+                    _sensors.First(x => x.Afe == Afe.Top).Data
+                        .Add(
+                            new SensorData
+                            {
+                                Bytes = currentThree,
+                                AccelerometerBytes = accelerometerBytes,
+                                StrainBytes = strainBytes
+                            });
+                    position = position + 3;
+                    if (channelMode == (int) ChannelMode.FourChannel || channelMode == (int) ChannelMode.SixChannel)
                     {
-                        var currentThree = responseBuffer.Skip(position).Take(3).ToArray();
-                        GetAccAndStrainInBytes(currentThree, out var accelerometerBytes, out var strainBytes);
-                        _sensors.First(x => x.Afe == Afe.Top).Data
-                            .Add(
-                                new SensorData
-                                {
-                                    Bytes = currentThree,
-                                    AccelerometerBytes = accelerometerBytes,
-                                    StrainBytes = strainBytes
-                                });
-                        currentThree = responseBuffer.Skip(position+3).Take(3).ToArray();
+                        currentThree = responseBuffer.Skip(position + 3).Take(3).ToArray();
                         GetAccAndStrainInBytes(currentThree, out accelerometerBytes, out strainBytes);
                         _sensors.First(x => x.Afe == Afe.Tip).Data
                             .Add(
@@ -321,7 +323,21 @@ namespace Smart.Agent.Business
                                     AccelerometerBytes = accelerometerBytes,
                                     StrainBytes = strainBytes
                                 });
-                        position = position + 6;
+                        position = position + 3;
+                    }
+                    if (channelMode == (int)ChannelMode.SixChannel)
+                    {
+                        currentThree = responseBuffer.Skip(position + 3).Take(3).ToArray();
+                        GetAccAndStrainInBytes(currentThree, out accelerometerBytes, out strainBytes);
+                        _sensors.First(x => x.Afe == Afe.Mid).Data
+                            .Add(
+                                new SensorData
+                                {
+                                    Bytes = currentThree,
+                                    AccelerometerBytes = accelerometerBytes,
+                                    StrainBytes = strainBytes
+                                });
+                        position = position + 3;
                     }
                 }
             }
@@ -329,28 +345,44 @@ namespace Smart.Agent.Business
             {
                 while (position < 262)
                 {
-                    for (int i = 0; i < iterationsByChannel; i++)
+
+                    var currentFour = responseBuffer.Skip(position).Take(4).ToArray();
+                    _sensors.First(x => x.Afe == Afe.Top).Data
+                        .Add(
+                            new SensorData
+                            {
+                                Bytes = currentFour,
+                                AccelerometerBytes = responseBuffer.Skip(position).Take(2).ToArray(),
+                                StrainBytes = responseBuffer.Skip(position + 2).Take(2).ToArray()
+                            });
+                    position = position + 4;
+                    if (channelMode == (int) ChannelMode.FourChannel || channelMode == (int) ChannelMode.SixChannel)
                     {
-                        var currentFour = responseBuffer.Skip(position).Take(4).ToArray();
-                        _sensors.First(x => x.Afe == Afe.Top).Data
-                            .Add(
-                                new SensorData
-                                {
-                                    Bytes = currentFour,
-                                    AccelerometerBytes = responseBuffer.Skip(position).Take(2).ToArray(),
-                                    StrainBytes = responseBuffer.Skip(position + 2).Take(2).ToArray()
-                                });
-                        currentFour = responseBuffer.Skip(position+4).Take(4).ToArray();
+                        currentFour = responseBuffer.Skip(position + 4).Take(4).ToArray();
                         _sensors.First(x => x.Afe == Afe.Tip).Data
                             .Add(
                                 new SensorData
                                 {
                                     Bytes = currentFour,
-                                    AccelerometerBytes = responseBuffer.Skip(position+4).Take(2).ToArray(),
+                                    AccelerometerBytes = responseBuffer.Skip(position + 4).Take(2).ToArray(),
                                     StrainBytes = responseBuffer.Skip(position + 6).Take(2).ToArray()
                                 });
 
-                        position = position + 8;
+                        position = position + 4;
+                    }
+                    if (channelMode == (int)ChannelMode.SixChannel)
+                    {
+                        currentFour = responseBuffer.Skip(position + 4).Take(4).ToArray();
+                        _sensors.First(x => x.Afe == Afe.Mid).Data
+                            .Add(
+                                new SensorData
+                                {
+                                    Bytes = currentFour,
+                                    AccelerometerBytes = responseBuffer.Skip(position + 4).Take(2).ToArray(),
+                                    StrainBytes = responseBuffer.Skip(position + 6).Take(2).ToArray()
+                                });
+
+                        position = position + 4;
                     }
                 }
             }

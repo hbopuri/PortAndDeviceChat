@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO.Ports;
 using System.Linq;
 using System.Management;
@@ -39,10 +40,10 @@ namespace Smart.Agent.Business
         {
             _responseBuffer = _responseBuffer == null ? respBuffer : Combine(_responseBuffer, respBuffer);
 
-            if (_currentCommand.CommandType == CommandType.Collect)
-            {
-                Task.Run(() => SmartLog.WriteLine(_responseBuffer.ToHex()));
-            }
+            //if (_currentCommand.CommandType == CommandType.Collect)
+            //{
+            //    Task.Run(() => SmartLog.WriteLine(_responseBuffer.ToHex()));
+            //}
 
             if (_responseBuffer.Length != _currentCommand.ExpectedPacketSize)
                 return;
@@ -268,10 +269,11 @@ namespace Smart.Agent.Business
                                 : new List<int> {2, 3}.Any(x => _dataPortConfig.SensorChannels.IndexOf(channel) == x)
                                     ? Afe.Tip
                                     : Afe.Mid,
-                            Data = new List<SensorData>()
+                            Data = new List<SensorData>(),
+                            Type = SensorType.Accelerometer
                         });
                         break;
-                    case (int) SensorType.StrainGage:
+                    case (int) SensorType.StrainGauge:
                         _sensors.Add(new Sensor
                         {
                             Afe = new List<int> {0, 1}.Any(x => _dataPortConfig.SensorChannels.IndexOf(channel) == x)
@@ -279,7 +281,8 @@ namespace Smart.Agent.Business
                                 : new List<int> {2, 3}.Any(x => _dataPortConfig.SensorChannels.IndexOf(channel) == x)
                                     ? Afe.Tip
                                     : Afe.Mid,
-                            Data = new List<SensorData>()
+                            Data = new List<SensorData>(),
+                            Type = SensorType.StrainGauge
                         });
                         break;
                 }
@@ -288,55 +291,178 @@ namespace Smart.Agent.Business
             int position = 22;
             var isCompressed = _dataPortConfig.ActChannelsDataPacking.ToBitArray()[0];
             var channelMode = Convert.ToInt32(_dataPortConfig.ActChannelsDataPacking.ToHex(true));
-            //var iterationsByChannel = channelMode == (int) ChannelMode.TwoChannel
-            //    ? 1
-            //    : channelMode == (int) ChannelMode.FourChannel
-            //        ? 2
-            //        : channelMode == (int) ChannelMode.SixChannel
-            //            ? 3
-            //            : 0;
             if (isCompressed)
             {
                 while (position < 262)
                 {
-
                     var currentThree = responseBuffer.Skip(position).Take(3).ToArray();
-                    GetAccAndStrainInBytes(currentThree, out var accelerometerBytes, out var strainBytes);
-                    _sensors.First(x => x.Afe == Afe.Top).Data
-                        .Add(
-                            new SensorData
-                            {
-                                Bytes = currentThree,
-                                AccelerometerBytes = accelerometerBytes,
-                                StrainBytes = strainBytes
-                            });
+                    MakeTwoHalves(currentThree, out var firstHalfBytes, out var secondHalfBytes);
+
+                    if (_sensors[0].Type == SensorType.Accelerometer)
+                    {
+                        if (_sensors.Any(x => x.Afe == Afe.Top && x.Type == SensorType.Accelerometer))
+                        {
+                           
+                                _sensors.First(x => x.Afe == Afe.Top && x.Type == SensorType.Accelerometer).Data
+                                    .Add(
+                                        new SensorData
+                                        {
+                                            Bytes = firstHalfBytes
+                                        });
+                        }
+                    }
+                    else if (_sensors[0].Type == SensorType.StrainGauge)
+                    {
+                        if (_sensors.Any(x => x.Afe == Afe.Top && x.Type == SensorType.StrainGauge))
+                        {
+                            _sensors.First(x => x.Afe == Afe.Top && x.Type == SensorType.StrainGauge).Data
+                                .Add(
+                                    new SensorData
+                                    {
+                                        Bytes = firstHalfBytes
+                                    });
+                        }
+                    }
+
+                    if (_sensors[1].Type == SensorType.Accelerometer)
+                    {
+                        if (_sensors.Any(x => x.Afe == Afe.Top && x.Type == SensorType.Accelerometer))
+                        {
+                            _sensors.First(x => x.Afe == Afe.Top && x.Type == SensorType.Accelerometer).Data
+                                .Add(
+                                    new SensorData
+                                    {
+                                        Bytes = secondHalfBytes
+                                    });
+                        }
+                    }
+                    else if (_sensors[1].Type == SensorType.StrainGauge)
+                    {
+                        if (_sensors.Any(x => x.Afe == Afe.Top && x.Type == SensorType.StrainGauge))
+                        {
+                            _sensors.First(x => x.Afe == Afe.Top && x.Type == SensorType.StrainGauge).Data
+                                .Add(
+                                    new SensorData
+                                    {
+                                        Bytes = secondHalfBytes
+                                    });
+                        }
+                    }
+
+
+
                     position = position + 3;
                     if (channelMode == (int) ChannelMode.FourChannel || channelMode == (int) ChannelMode.SixChannel)
                     {
                         currentThree = responseBuffer.Skip(position + 3).Take(3).ToArray();
-                        GetAccAndStrainInBytes(currentThree, out accelerometerBytes, out strainBytes);
-                        _sensors.First(x => x.Afe == Afe.Tip).Data
-                            .Add(
-                                new SensorData
-                                {
-                                    Bytes = currentThree,
-                                    AccelerometerBytes = accelerometerBytes,
-                                    StrainBytes = strainBytes
-                                });
+                        MakeTwoHalves(currentThree, out firstHalfBytes, out secondHalfBytes);
+                        if (_sensors[2].Type == SensorType.Accelerometer)
+                        {
+                            if (_sensors.Any(x => x.Afe == Afe.Tip && x.Type == SensorType.Accelerometer))
+                            {
+                                _sensors.First(x => x.Afe == Afe.Tip && x.Type == SensorType.Accelerometer).Data
+                                    .Add(
+                                        new SensorData
+                                        {
+                                            Bytes = firstHalfBytes
+                                        });
+                            }
+                        }
+                        else if (_sensors[2].Type == SensorType.StrainGauge)
+                        {
+                            if (_sensors.Any(x => x.Afe == Afe.Tip && x.Type == SensorType.StrainGauge))
+                            {
+                                _sensors.First(x => x.Afe == Afe.Tip && x.Type == SensorType.StrainGauge).Data
+                                    .Add(
+                                        new SensorData
+                                        {
+                                            Bytes = firstHalfBytes
+                                        });
+                            }
+                        }
+
+                        if (_sensors[3].Type == SensorType.Accelerometer)
+                        {
+                            if (_sensors.Any(x => x.Afe == Afe.Tip && x.Type == SensorType.Accelerometer))
+                            {
+                                _sensors.First(x => x.Afe == Afe.Tip && x.Type == SensorType.Accelerometer).Data
+                                    .Add(
+                                        new SensorData
+                                        {
+                                            Bytes = secondHalfBytes
+                                        });
+                            }
+                        }
+                        else if (_sensors[3].Type == SensorType.StrainGauge)
+                        {
+                            if (_sensors.Any(x => x.Afe == Afe.Tip && x.Type == SensorType.StrainGauge))
+                            {
+                                _sensors.First(x => x.Afe == Afe.Tip && x.Type == SensorType.StrainGauge).Data
+                                    .Add(
+                                        new SensorData
+                                        {
+                                            Bytes = secondHalfBytes
+                                        });
+                            }
+                        }
+
                         position = position + 3;
                     }
-                    if (channelMode == (int)ChannelMode.SixChannel)
+
+                    if (channelMode == (int) ChannelMode.SixChannel)
                     {
                         currentThree = responseBuffer.Skip(position + 3).Take(3).ToArray();
-                        GetAccAndStrainInBytes(currentThree, out accelerometerBytes, out strainBytes);
-                        _sensors.First(x => x.Afe == Afe.Mid).Data
-                            .Add(
-                                new SensorData
-                                {
-                                    Bytes = currentThree,
-                                    AccelerometerBytes = accelerometerBytes,
-                                    StrainBytes = strainBytes
-                                });
+                        MakeTwoHalves(currentThree, out firstHalfBytes, out secondHalfBytes);
+                        if (_sensors[4].Type == SensorType.Accelerometer)
+                        {
+                            if (_sensors.Any(x => x.Afe == Afe.Mid && x.Type == SensorType.Accelerometer))
+                            {
+                                _sensors.First(x => x.Afe == Afe.Mid && x.Type == SensorType.Accelerometer).Data
+                                    .Add(
+                                        new SensorData
+                                        {
+                                            Bytes = firstHalfBytes
+                                        });
+                            }
+                        }
+                        else if (_sensors[4].Type == SensorType.StrainGauge)
+                        {
+                            if (_sensors.Any(x => x.Afe == Afe.Mid && x.Type == SensorType.StrainGauge))
+                            {
+                                _sensors.First(x => x.Afe == Afe.Mid && x.Type == SensorType.StrainGauge).Data
+                                    .Add(
+                                        new SensorData
+                                        {
+                                            Bytes = firstHalfBytes
+                                        });
+                            }
+                        }
+
+                        if (_sensors[5].Type == SensorType.Accelerometer)
+                        {
+                            if (_sensors.Any(x => x.Afe == Afe.Mid && x.Type == SensorType.Accelerometer))
+                            {
+                                _sensors.First(x => x.Afe == Afe.Mid && x.Type == SensorType.Accelerometer).Data
+                                    .Add(
+                                        new SensorData
+                                        {
+                                            Bytes = secondHalfBytes
+                                        });
+                            }
+                        }
+                        else if (_sensors[5].Type == SensorType.StrainGauge)
+                        {
+                            if (_sensors.Any(x => x.Afe == Afe.Mid && x.Type == SensorType.StrainGauge))
+                            {
+                                _sensors.First(x => x.Afe == Afe.Mid && x.Type == SensorType.StrainGauge).Data
+                                    .Add(
+                                        new SensorData
+                                        {
+                                            Bytes = secondHalfBytes
+                                        });
+                            }
+                        }
+
                         position = position + 3;
                     }
                 }
@@ -346,83 +472,131 @@ namespace Smart.Agent.Business
                 while (position < 262)
                 {
 
-                    var currentFour = responseBuffer.Skip(position).Take(4).ToArray();
-                    _sensors.First(x => x.Afe == Afe.Top).Data
-                        .Add(
-                            new SensorData
-                            {
-                                Bytes = currentFour,
-                                AccelerometerBytes = responseBuffer.Skip(position).Take(2).ToArray(),
-                                StrainBytes = responseBuffer.Skip(position + 2).Take(2).ToArray()
-                            });
+                    //var currentFour = responseBuffer.Skip(position).Take(4).ToArray();
+
+                    if (_sensors.Any(x => x.Afe == Afe.Top && x.Type == SensorType.Accelerometer))
+                    {
+                        _sensors.First(x => x.Afe == Afe.Top).Data
+                            .Add(
+                                new SensorData
+                                {
+                                    Bytes = responseBuffer.Skip(position).Take(2).ToArray()
+                                });
+                    }
+
+                    if (_sensors.Any(x => x.Afe == Afe.Top && x.Type == SensorType.StrainGauge))
+                    {
+                        _sensors.First(x => x.Afe == Afe.Top).Data
+                            .Add(
+                                new SensorData
+                                {
+                                    Bytes = responseBuffer.Skip(position + 2).Take(2).ToArray()
+                                });
+                    }
+
                     position = position + 4;
                     if (channelMode == (int) ChannelMode.FourChannel || channelMode == (int) ChannelMode.SixChannel)
                     {
-                        currentFour = responseBuffer.Skip(position + 4).Take(4).ToArray();
-                        _sensors.First(x => x.Afe == Afe.Tip).Data
-                            .Add(
-                                new SensorData
-                                {
-                                    Bytes = currentFour,
-                                    AccelerometerBytes = responseBuffer.Skip(position + 4).Take(2).ToArray(),
-                                    StrainBytes = responseBuffer.Skip(position + 6).Take(2).ToArray()
-                                });
+                        //currentFour = responseBuffer.Skip(position + 4).Take(4).ToArray();
+                        if (_sensors.Any(x => x.Afe == Afe.Tip && x.Type == SensorType.Accelerometer))
+                        {
+                            _sensors.First(x => x.Afe == Afe.Tip).Data
+                                .Add(
+                                    new SensorData
+                                    {
+                                        Bytes = responseBuffer.Skip(position + 4).Take(2).ToArray()
+                                    });
+                        }
+
+                        if (_sensors.Any(x => x.Afe == Afe.Tip && x.Type == SensorType.StrainGauge))
+                        {
+                            _sensors.First(x => x.Afe == Afe.Tip).Data
+                                .Add(
+                                    new SensorData
+                                    {
+                                        Bytes = responseBuffer.Skip(position + 6).Take(2).ToArray()
+                                    });
+                        }
 
                         position = position + 4;
                     }
-                    if (channelMode == (int)ChannelMode.SixChannel)
+
+                    if (channelMode == (int) ChannelMode.SixChannel)
                     {
-                        currentFour = responseBuffer.Skip(position + 4).Take(4).ToArray();
-                        _sensors.First(x => x.Afe == Afe.Mid).Data
-                            .Add(
-                                new SensorData
-                                {
-                                    Bytes = currentFour,
-                                    AccelerometerBytes = responseBuffer.Skip(position + 4).Take(2).ToArray(),
-                                    StrainBytes = responseBuffer.Skip(position + 6).Take(2).ToArray()
-                                });
+                        //currentFour = responseBuffer.Skip(position + 4).Take(4).ToArray();
+                        if (_sensors.Any(x => x.Afe == Afe.Mid && x.Type == SensorType.Accelerometer))
+                        {
+                            _sensors.First(x => x.Afe == Afe.Mid).Data
+                                .Add(
+                                    new SensorData
+                                    {
+                                        Bytes = responseBuffer.Skip(position + 4).Take(2).ToArray()
+                                    });
+                        }
+
+                        if (_sensors.Any(x => x.Afe == Afe.Mid && x.Type == SensorType.StrainGauge))
+                        {
+                            _sensors.First(x => x.Afe == Afe.Mid).Data
+                                .Add(
+                                    new SensorData
+                                    {
+                                        Bytes = responseBuffer.Skip(position + 6).Take(2).ToArray()
+                                    });
+                        }
 
                         position = position + 4;
                     }
                 }
             }
 
+            int channelIndex = 0;
             foreach (var sensor in _sensors)
             {
+                //SmartLog.WriteLine($"{sensor.Afe}-{sensor.Type}:");
+                //foreach (var sensorData in sensor.Data)
+                //{
+                //    if(sensorData.Bytes != null)
+                //        SmartLog.WriteLine(sensorData.Bytes.ToDecimal(0).ToString(CultureInfo.InvariantCulture));
+                //}
                 switch (sensor.Afe)
                 {
                     case Afe.Top:
-                        if (sensor.Data.Any(x => x.AccelerometerBytes != null))
-                            CalculateAccelerometer(sensor, 0);
-                        if (sensor.Data.Any(x => x.StrainBytes != null))
-                            CalculateStrain(sensor, 1);
+                        if (sensor.Type == SensorType.Accelerometer && sensor.Data.Any(x => x.Bytes != null))
+                            CalculateAccelerometer(sensor, channelIndex);
+                        if (sensor.Type == SensorType.StrainGauge && sensor.Data.Any(x => x.Bytes != null))
+                            CalculateStrain(sensor, channelIndex);
                         break;
                     case Afe.Tip:
-                        if (sensor.Data.Any(x => x.AccelerometerBytes != null))
-                            CalculateAccelerometer(sensor, 2);
-                        if (sensor.Data.Any(x => x.StrainBytes != null))
-                            CalculateStrain(sensor, 3);
+                        if (sensor.Type == SensorType.Accelerometer && sensor.Data.Any(x => x.Bytes != null))
+                            CalculateAccelerometer(sensor, channelIndex);
+
+                        if (sensor.Type == SensorType.StrainGauge && sensor.Data.Any(x => x.Bytes != null))
+                            CalculateStrain(sensor, channelIndex);
                         break;
                     case Afe.Mid:
-                        if (sensor.Data.Any(x => x.AccelerometerBytes != null))
-                            CalculateAccelerometer(sensor, 4);
-                        if (sensor.Data.Any(x => x.StrainBytes != null))
-                            CalculateStrain(sensor, 5);
+                        if (sensor.Type == SensorType.Accelerometer && sensor.Data.Any(x => x.Bytes != null))
+                            CalculateAccelerometer(sensor, channelIndex);
+
+                        if (sensor.Type == SensorType.StrainGauge && sensor.Data.Any(x => x.Bytes != null))
+                            CalculateStrain(sensor, channelIndex);
+
                         break;
                 }
+
+                channelIndex++;
+
             }
         }
 
         private void CalculateStrain(Sensor sensor, int channelIndex)
         {
-            foreach (var t in sensor.Data.Where(x => x.StrainBytes != null))
+            foreach (var t in sensor.Data.Where(x => x.Bytes != null))
             {
-                //var channelIndex = 1;
                 var offset = _dataPortConfig.SensorChannels[channelIndex].Offset.ToDecimal(0);
                 var gain = _dataPortConfig.SensorChannels[channelIndex].Gain.ToFloat(0);
                 var gage = _dataPortConfig.SensorChannels[channelIndex].SensitivityGageFactor.ToDecimal(0);
                 var absoluteR = _dataPortConfig.SensorChannels[channelIndex].AbsoluteR.ToDecimal(0);
-                var n = t.StrainBytes.ToArray();
+                var n = t.Bytes.ToArray();
                 var someA = (BitConverter.ToUInt16(n, 0) + (double) offset - 1092) * gain *
                             (double) (((decimal) 0.00105026 / (absoluteR / 100)) / (gage / 1000));
                 if (_dataPortConfig.SensorChannels[channelIndex].Type.ToDecimal(0) == 1)
@@ -430,28 +604,18 @@ namespace Smart.Agent.Business
                     someA = someA * 1000000;
                 }
 
-                t.StrainValue = someA;
-
-                var someB = (t.Strain + (double) offset - 1092) * gain *
-                            (double) (((decimal) 0.00105026 / (absoluteR / 100)) / (gage / 1000));
-                if (_dataPortConfig.SensorChannels[channelIndex].Type.ToDecimal(0) == 1)
-                {
-                    someB = someB * 1000000;
-                }
-
-                t.StrainValueLab = someB;
+                t.Value = someA;
             }
         }
 
         private void CalculateAccelerometer(Sensor sensor, int channelIndex)
         {
-            foreach (var t in sensor.Data.Where(x => x.AccelerometerBytes != null))
+            foreach (var t in sensor.Data.Where(x => x.Bytes != null))
             {
-                //var channelIndex = 0;
                 var offset = _dataPortConfig.SensorChannels[channelIndex].Offset.ToDecimal(0);
                 var gain = _dataPortConfig.SensorChannels[channelIndex].Gain.ToFloat(0);
                 var gage = _dataPortConfig.SensorChannels[channelIndex].SensitivityGageFactor.ToDecimal(0);
-                var n = t.AccelerometerBytes.ToArray();
+                var n = t.Bytes.ToArray();
                 var someA = (((BitConverter.ToUInt16(n, 0) + (double) offset) - 2047) * gain) *
                             (0.9039 / (double) (gage / 1000));
 
@@ -460,47 +624,37 @@ namespace Smart.Agent.Business
                     someA = someA * 1000000;
                 }
 
-                t.AccelerometerValue = someA;
-
-                var someB = (((t.Accelerometer + (double) offset) - 2047) * gain) *
-                            (0.9039 / (double) (gage / 1000));
-
-                if (_dataPortConfig.SensorChannels[channelIndex].Type.ToDecimal(0) == 1)
-                {
-                    someB = someB * 1000000;
-                }
-
-                t.AccelerometerValueLab = someB;
+                t.Value = someA;
             }
         }
 
-        private static void GetAccAndStrainInDouble(byte[] currentThree, out double accelerometer, out double strain)
-        {
-            var first = currentThree.ToBinary().Split('-')[0];
-            //var firstLeft = first.Substring(4, 4)+ "0000";
+        //private static void GetAccAndStrainInDouble(byte[] currentThree, out double accelerometer, out double strain)
+        //{
+        //    var first = currentThree.ToBinary().Split('-')[0];
+        //    //var firstLeft = first.Substring(4, 4)+ "0000";
 
-            var second = currentThree.ToBinary().Split('-')[1];
-            var secondLeft = second.Substring(4, 4) + "0000";
+        //    var second = currentThree.ToBinary().Split('-')[1];
+        //    var secondLeft = second.Substring(4, 4) + "0000";
 
-            var secondRightFromLeft = secondLeft.Substring(0, 4);
-            secondRightFromLeft = "0000" + secondRightFromLeft;
+        //    var secondRightFromLeft = secondLeft.Substring(0, 4);
+        //    secondRightFromLeft = "0000" + secondRightFromLeft;
 
 
-            var high = Convert.ToInt32(secondRightFromLeft, 2);
-            var low = Convert.ToInt32(first, 2);
-            accelerometer = high * Math.Pow(2, 8) + low;
+        //    var high = Convert.ToInt32(secondRightFromLeft, 2);
+        //    var low = Convert.ToInt32(first, 2);
+        //    accelerometer = high * Math.Pow(2, 8) + low;
 
-            var secondRight = "0000" + second.Substring(0, 4);
-            var third = currentThree.ToBinary().Split('-')[2];
-            var thirdLeft = third.Substring(4, 4) + "0000";
-            var thirdRight = "0000" + third.Substring(0, 4);
+        //    var secondRight = "0000" + second.Substring(0, 4);
+        //    var third = currentThree.ToBinary().Split('-')[2];
+        //    var thirdLeft = third.Substring(4, 4) + "0000";
+        //    var thirdRight = "0000" + third.Substring(0, 4);
 
-            low = Convert.ToInt32(secondRight, 2) + Convert.ToInt32(thirdLeft, 2);
-            high = Convert.ToInt32(thirdRight, 2);
-            strain = high * Math.Pow(2, 8) + low;
-        }
+        //    low = Convert.ToInt32(secondRight, 2) + Convert.ToInt32(thirdLeft, 2);
+        //    high = Convert.ToInt32(thirdRight, 2);
+        //    strain = high * Math.Pow(2, 8) + low;
+        //}
 
-        private static void GetAccAndStrainInBytes(byte[] currentThree, out byte[] accelerometer, out byte[] strain)
+        private static void MakeTwoHalves(byte[] currentThree, out byte[] accelerometer, out byte[] strain)
         {
             //var firstLowerNibble = currentThree[0].GetNibble(0);
             //var firstUpperNibble = currentThree[0].GetNibble(1);
@@ -623,6 +777,7 @@ namespace Smart.Agent.Business
                 case 1:
                     try
                     {
+                        _sensors = new List<Sensor>();
                         loopResponse.ReturnObject = Collect();
                     }
                     catch (Exception ex)
@@ -814,7 +969,8 @@ namespace Smart.Agent.Business
             return new DataPortConfig
             {
                 FirmwareVersion = new byte[] {0x02, 0xBC},
-                ActChannelsDataPacking = new byte[] {0x41},
+                //ActChannelsDataPacking = new byte[] {0x41},
+                ActChannelsDataPacking = new byte[] { 0x21 },
                 SampleInterval = new byte[] {0x00, 0x04}
             };
         }
@@ -833,8 +989,8 @@ namespace Smart.Agent.Business
             complete[9] = 0x11;
 
 
-            complete[12] = defaultSettings.FirmwareVersion[1];
-            complete[13] = defaultSettings.FirmwareVersion[0];
+            //complete[12] = defaultSettings.FirmwareVersion[1];
+            //complete[13] = defaultSettings.FirmwareVersion[0];
 
             //complete[12] = 0x76;
             //complete[13] = 0x02;
@@ -864,6 +1020,8 @@ namespace Smart.Agent.Business
                 writeDataPortCommand.CommBytes = complete;
                 ExecuteCommand(writeDataPortCommand);
             }
+
+            ReadDataPortConfig();
         }
     }
 }

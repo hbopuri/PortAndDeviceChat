@@ -9,7 +9,7 @@ using Smart.Agent.Model;
 using Smart.Log;
 using Smart.Log.Helper;
 
-namespace ChatConsole
+namespace FinalCal
 {
     class Program
     {
@@ -24,33 +24,18 @@ namespace ChatConsole
         {
             Console.Clear();
             Parser.Default.ParseArguments<Options>(args)
-                .WithParsed<Options>(o =>
+                .WithParsed(o =>
                 {
                     _options = o;
-                    if (o.PrintRequest)
-                    {
-                        Console.WriteLine($"Print Request enabled. Current Arguments: --req {o.PrintRequest}");
-                    }
-                    else
-                    {
-                        Console.WriteLine($"Print Request disabled. Current Arguments: --req {o.PrintRequest}");
-                    }
-                    if (o.PrintResponse)
-                    {
-                        Console.WriteLine($"Print Response enabled. Current Arguments: --res {o.PrintResponse}");
-                    }
-                    else
-                    {
-                        Console.WriteLine($"Print Response disabled. Current Arguments: --res {o.PrintResponse}");
-                    }
-                    if (o.PrintDataPortConfig)
-                    {
-                        Console.WriteLine($"Print Data Port Config enabled. Current Arguments: --conf {o.PrintDataPortConfig}");
-                    }
-                    else
-                    {
-                        Console.WriteLine($"Print Data Port Config disabled. Current Arguments: --conf {o.PrintDataPortConfig}");
-                    }
+                    SmartLog.WriteLine(o.PrintRequest
+                        ? $"Print Request enabled. Current Arguments: --req {o.PrintRequest}"
+                        : $"Print Request disabled. Current Arguments: --req {o.PrintRequest}");
+                    SmartLog.WriteLine(o.PrintResponse
+                        ? $"Print Response enabled. Current Arguments: --res {o.PrintResponse}"
+                        : $"Print Response disabled. Current Arguments: --res {o.PrintResponse}");
+                    SmartLog.WriteLine(o.PrintDataPortConfig
+                        ? $"Print Data Port Config enabled. Current Arguments: --conf {o.PrintDataPortConfig}"
+                        : $"Print Data Port Config disabled. Current Arguments: --conf {o.PrintDataPortConfig}");
                 });
 
             if (args != null && args.Any() && args[0].Equals("--help", StringComparison.InvariantCultureIgnoreCase))
@@ -86,9 +71,7 @@ namespace ChatConsole
                                 if (sensor.Data != null && sensor.Data.Any())
                                 {
                                     SmartLog.WriteLine(
-                                        $"{sensor.Afe} ({sensor.Data.Count} samples): Accelerometer:{Math.Truncate(sensor.Data.Average(x => x.AccelerometerValue))}");
-                                    SmartLog.WriteLine(
-                                        $"{sensor.Afe} ({sensor.Data.Count} samples): Strain:{Math.Truncate(sensor.Data.Average(x => x.StrainValue))}");
+                                        $"{sensor.Afe} ({sensor.Data.Count} samples): {sensor.Type}:{Math.Truncate(sensor.Data.Average(x => x.Value))}");
                                     }
                             }
 
@@ -152,74 +135,6 @@ namespace ChatConsole
             }
         }
 
-
-        public static void DrawEllipse(char c, int centerX, int centerY, int width, int height)
-        {
-            for (int i = 0; i < width; i++)
-            {
-                int dx = i - width / 2;
-                int x = centerX + dx;
-
-                int h = (int)Math.Round(height * Math.Sqrt(width * width / 4.0 - dx * dx) / width);
-                for (int dy = 1; dy <= h; dy++)
-                {
-                    Console.SetCursorPosition(x, centerY + dy);
-                    Console.Write(c);
-                    Console.SetCursorPosition(x, centerY - dy);
-                    Console.Write(c);
-                }
-
-                if (h >= 0)
-                {
-                    Console.SetCursorPosition(x, centerY);
-                    Console.Write(c);
-                }
-            }
-        }
-        private static void DrawCircle(double radius)
-        {
-            //SmartLog.WriteLine("--------------------------------------------------------");
-            //SmartLog.WriteLine("--------------------------------------------------------");
-            //SmartLog.WriteLine("--------------------------------------------------------");
-            //SmartLog.WriteLine("--------------------------------------------------------");
-            //SmartLog.WriteLine("--------------------------------------------------------");
-            //SmartLog.WriteLine("--------------------------------------------------------");
-            //double radius;
-            double thickness = 0.4;
-            ConsoleColor BorderColor = ConsoleColor.Cyan;
-            Console.ForegroundColor = BorderColor;
-            char symbol = '*';
-            //do
-            //{
-            //    Console.Write("Enter radius:::: ");
-            //    if (!double.TryParse(Console.ReadLine(), out radius) || radius <= 0)
-            //    {
-            //        Console.WriteLine("radius have to be positive number");
-            //    }
-            //} while (radius <= 0);
-
-            Console.WriteLine();
-            double rIn = radius - thickness, rOut = radius + thickness;
-
-            for (double y = radius; y >= -radius; --y)
-            {
-                for (double x = -radius; x < rOut; x += 0.5)
-                {
-                    double value = x * x + y * y;
-                    if (value >= rIn * rIn && value <= rOut * rOut)
-                    {
-                        Console.Write(symbol);
-                    }
-                    else
-                    {
-                        Console.Write(" ");
-                    }
-                }
-
-                Console.WriteLine();
-            }
-        }
-
         private static void Greet()
         {
             ConsoleColor BorderColor = ConsoleColor.Cyan;
@@ -238,7 +153,7 @@ namespace ChatConsole
                 var bytes = Console.ReadLine().HexToByteArray();
                 if (bytes == null)
                 {
-                    SmartLog.WriteLine($"\nInvalid Hex. Please re-enter");
+                    SmartLog.WriteLine("\nInvalid Hex. Please re-enter");
                 }
                 else
                 {
@@ -290,25 +205,6 @@ namespace ChatConsole
             ConsoleColor BorderColor = ConsoleColor.White;
             Console.ForegroundColor = BorderColor;
             _smartPort = new SmartPort();
-            //_smartDevice = new SmartDevice();
-        }
-
-        public static bool StringToByteArray(string hex)
-        {
-            try
-            {
-                byte[] bytes = Enumerable.Range(0, hex.Length)
-                    .Where(x => x % 2 == 0)
-                    .Select(x => Convert.ToByte(hex.Substring(x, 2), 16))
-                    .ToArray();
-                _boardId = bytes[0];
-                return true;
-            }
-            catch (Exception e)
-            {
-                SmartLog.WriteLine(e.Message);
-                return false;
-            }
         }
     }
 }

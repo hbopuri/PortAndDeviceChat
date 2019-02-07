@@ -6,8 +6,8 @@
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <ProjectGuid>{05C32096-D150-4918-8490-5F2E49BD4890}</ProjectGuid>
     <OutputType>Exe</OutputType>
-    <RootNamespace>ChatConsole</RootNamespace>
-    <AssemblyName>ChatConsole</AssemblyName>
+    <RootNamespace>FinalCal</RootNamespace>
+    <AssemblyName>FinalCal</AssemblyName>
     <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
@@ -48,7 +48,7 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <PropertyGroup>
-    <StartupObject>ChatConsole.Program</StartupObject>
+    <StartupObject>FinalCal.Program</StartupObject>
   </PropertyGroup>
   <PropertyGroup>
     <ApplicationIcon>apple-touch-icon-57-precomposed.ico</ApplicationIcon>

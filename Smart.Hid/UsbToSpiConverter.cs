@@ -2,6 +2,8 @@
 using System.Text;
 using System.Threading.Tasks;
 using mcp2210_dll_m;
+using Smart.Log.Enum;
+
 namespace Smart.Hid
 {
     public class UsbToSpiConverter
@@ -9,166 +11,133 @@ namespace Smart.Hid
         /**** Constants ****/
         public const ushort DefaultVid = 0x4d8;
         public const ushort DefaultPid = 0xde;
+        private static IntPtr _deviceHandle;
+        private static int _response;
+        private static int _deviceCount;
 
         public static async Task<int> Init()
         {
-            int devCount = MCP2210.M_Mcp2210_GetConnectedDevCount(DefaultVid, DefaultPid);
-            Console.WriteLine(devCount + " devices found");
-            if (devCount > 0)
+            _deviceCount = MCP2210.M_Mcp2210_GetConnectedDevCount(DefaultVid, DefaultPid);
+            Console.WriteLine(_deviceCount + " devices found");
+            if (_deviceCount <= 0) return _response;
+            StringBuilder path = new StringBuilder();
+            _deviceHandle = MCP2210.M_Mcp2210_OpenByIndex(DefaultVid, DefaultPid, 0, path);
+            _response = MCP2210.M_Mcp2210_GetLastError();
+            if (_response != MCP2210.M_E_SUCCESS)
             {
-                StringBuilder path = new StringBuilder();
-
-                var deviceHandle = MCP2210.M_Mcp2210_OpenByIndex(DefaultVid, DefaultPid, 0, path);
-                var res = MCP2210.M_Mcp2210_GetLastError();
-                if (res != MCP2210.M_E_SUCCESS)
-                {
-                    Console.WriteLine("Failed to open connection");
-                    return await Task.FromResult(-1);
-                }
-
-
-                // set the SPI xFer params for I/O expander
-                uint baudRate2 = 1000000;
-                uint idleCsVal2 = 0x1ff;
-                uint activeCsVal2 = 0x1ee; // GP4 and GP0 set as active low CS
-                uint csToDataDly2 = 0;
-                uint dataToDataDly2 = 0;
-                uint dataToCsDly2 = 0;
-                uint txFerSize2 = 4;     // I/O expander xFer size set to 4
-                byte spiMd2 = 0;
-                uint csMask4 = 0x10;  // set GP4 as CS
-
-                byte[] txData = new byte[4], rxData = new byte[4];
-                // set the expander config params
-                txData[0] = 0x40;
-                txData[1] = 0x0A;
-                txData[2] = 0xff;
-                txData[3] = 0x00;
-                // send the data
-                // use the extended SPI xFer API first time in order to set all the parameters
-                // the subsequent xFer with the same device may use the simple API in order to save CPU cycles
-                res = MCP2210.M_Mcp2210_xferSpiDataEx(deviceHandle, txData, rxData, ref baudRate2, ref txFerSize2, csMask4, ref idleCsVal2, ref activeCsVal2, ref csToDataDly2,
-                    ref dataToCsDly2, ref dataToDataDly2, ref spiMd2);
-                if (res != MCP2210.M_E_SUCCESS)
-                {
-                    MCP2210.M_Mcp2210_Close(deviceHandle);
-                    Console.WriteLine(" Transfer error: " + res);
-                    return res;
-                }
-
-                txFerSize2 = 3;          // set the txFer size to 3 -> don't write to mcp23s08 ioDir again
-                uint csMaskNoChange = 0x10000000;   // preserve the CS selection and skip the GP8CE fix -> data xFer optimization
-                for (byte i = 0; i < 255; i++)
-                {
-                    txData[2] = i;
-                    // we don't need to change all SPI params so we can start using the faster xFer API
-                    res = MCP2210.M_Mcp2210_xferSpiData(deviceHandle, txData, rxData, ref baudRate2, ref txFerSize2, csMaskNoChange);
-                    if (res != MCP2210.M_E_SUCCESS)
-                    {
-                        MCP2210.M_Mcp2210_Close(deviceHandle);
-                        return res;
-                    }
-                }
-
-                // turn off the led -> set the mcp23s08 ioDir to 0xFF;
-                txData[0] = 0x40;
-                txData[1] = 0x00;
-                txData[2] = 0xFF;
-                res = MCP2210.M_Mcp2210_xferSpiData(deviceHandle, txData, rxData, ref baudRate2, ref txFerSize2, csMaskNoChange);
-                if (res != MCP2210.M_E_SUCCESS)
-                {
-                    MCP2210.M_Mcp2210_Close(deviceHandle);
-                    return res;
-                }
-
-
-                MCP2210.M_Mcp2210_Close(deviceHandle);
-
+                Console.WriteLine("Failed to open connection");
+                return await Task.FromResult(-1);
             }
 
-
-            return 0;
-
+            return _response;
         }
 
-        public static async Task<int> Increment()
+        public static async Task<int> IncrementOrDecrementStrain(SgAdjust sgAdjust)
         {
-            int devCount = MCP2210.M_Mcp2210_GetConnectedDevCount(DefaultVid, DefaultPid);
-            Console.WriteLine(devCount + " devices found");
-            if (devCount > 0)
+            if (_deviceCount == 0)
             {
-                StringBuilder path = new StringBuilder();
-
-                var deviceHandle = MCP2210.M_Mcp2210_OpenByIndex(DefaultVid, DefaultPid, 0, path);
-                var res = MCP2210.M_Mcp2210_GetLastError();
-                if (res != MCP2210.M_E_SUCCESS)
-                {
-                    Console.WriteLine("Failed to open connection");
-                    return await Task.FromResult(-1);
-                }
-
-
-                // set the SPI xFer params for I/O expander
-                uint baudRate2 = 250000; //1000000
-                uint idleCsVal2 = 0x1ff;
-                uint activeCsVal2 = 0x1fd;//GP1 CS PIN, remaining pins are GP //0x1ee GP4 and GP0 set as active low CS
-                uint csToDataDly2 = 0;
-                uint dataToDataDly2 = 0;
-                uint dataToCsDly2 = 0;
-                uint txFerSize2 = 3;     // I/O expander xFer size set to 4
-                byte spiMd2 = 0;
-                uint csMask4 = 0x02; //GP1 as CS  // 0x10 set GP4 as CS
-
-                byte[] txData = new byte[3], rxData = new byte[3];
-                // set the expander config params
-                txData[0] = 0x60;
-                txData[1] = 0x00;
-                txData[2] = 0x00;
-                // send the data
-                // use the extended SPI xFer API first time in order to set all the parameters
-                // the subsequent xFer with the same device may use the simple API in order to save CPU cycles
-                res = MCP2210.M_Mcp2210_xferSpiDataEx(deviceHandle, txData, rxData, ref baudRate2, ref txFerSize2, csMask4, ref idleCsVal2, ref activeCsVal2, ref csToDataDly2,
-                    ref dataToCsDly2, ref dataToDataDly2, ref spiMd2);
-                if (res != MCP2210.M_E_SUCCESS)
-                {
-                    MCP2210.M_Mcp2210_Close(deviceHandle);
-                    Console.WriteLine(" Transfer error: " + res);
-                    return res;
-                }
-
-                //txFerSize2 = 3;          // set the txFer size to 3 -> don't write to mcp23s08 ioDir again
-                //uint csMaskNoChange = 0x10000000;   // preserve the CS selection and skip the GP8CE fix -> data xFer optimization
-                //for (byte i = 0; i < 255; i++)
-                //{
-                //    txData[2] = i;
-                //    // we don't need to change all SPI params so we can start using the faster xFer API
-                //    res = MCP2210.M_Mcp2210_xferSpiData(deviceHandle, txData, rxData, ref baudRate2, ref txFerSize2, csMaskNoChange);
-                //    if (res != MCP2210.M_E_SUCCESS)
-                //    {
-                //        MCP2210.M_Mcp2210_Close(deviceHandle);
-                //        return res;
-                //    }
-                //}
-
-                //// turn off the led -> set the mcp23s08 ioDir to 0xFF;
-                //txData[0] = 0x40;
-                //txData[1] = 0x00;
-                //txData[2] = 0xFF;
-                //res = MCP2210.M_Mcp2210_xferSpiData(deviceHandle, txData, rxData, ref baudRate2, ref txFerSize2, csMaskNoChange);
-                //if (res != MCP2210.M_E_SUCCESS)
-                //{
-                //    MCP2210.M_Mcp2210_Close(deviceHandle);
-                //    return res;
-                //}
-
-
-                MCP2210.M_Mcp2210_Close(deviceHandle);
-
+                await Init();
             }
 
 
-            return 0;
+            // set the SPI xFer params for I/O expander
+            uint baudRate2 = 250000; //1000000
+            uint idleCsVal2 = 0x1ff;
+            uint activeCsVal2 = 0x1fd;//GP1 CS PIN, remaining pins are GP //0x1ee GP4 and GP0 set as active low CS
+            uint csToDataDly2 = 0;
+            uint dataToDataDly2 = 0;
+            uint dataToCsDly2 = 0;
+            uint txFerSize2 = 3;     // I/O expander xFer size set to 4
+            byte spiMd2 = 0;
+            uint csMask4 = 0x02; //GP1 as CS  // 0x10 set GP4 as CS
 
+            byte[] txData = new byte[3], rxData = new byte[3];
+            switch (sgAdjust)
+            {
+                // set the expander config params
+                case SgAdjust.Increment:
+                    txData[0] =  0x60;
+                    break;
+                case SgAdjust.Decrement:
+                    txData[0] = 0xE0;
+                    break;
+                case SgAdjust.Save:
+                    txData[0] = 0x20;
+                    break;
+            }
+
+            txData[1] = 0x00;
+            txData[2] = 0x00;
+            // send the data
+            // use the extended SPI xFer API first time in order to set all the parameters
+            // the subsequent xFer with the same device may use the simple API in order to save CPU cycles
+            _response = MCP2210.M_Mcp2210_xferSpiDataEx(_deviceHandle, txData, rxData, ref baudRate2, ref txFerSize2, csMask4, ref idleCsVal2, ref activeCsVal2, ref csToDataDly2,
+                ref dataToCsDly2, ref dataToDataDly2, ref spiMd2);
+            if (_response != MCP2210.M_E_SUCCESS)
+            {
+                MCP2210.M_Mcp2210_Close(_deviceHandle);
+                Console.WriteLine(" Transfer error: " + _response);
+                _deviceCount = 0;
+                return _response;
+            }
+            return 0;
+        }
+        public static async Task<int> IncrementOrDecrementAx(AxAdjust axAdjust)
+        {
+            if (_deviceCount == 0)
+            {
+                await Init();
+            }
+
+
+            // set the SPI xFer params for I/O expander
+            uint baudRate2 = 250000; //1000000
+            uint idleCsVal2 = 0x1ff;
+            uint activeCsVal2 = 0x1fb;//GP0 CS PIN, remaining pins are GP //0x1ee GP4 and GP0 set as active low CS
+            uint csToDataDly2 = 0;
+            uint dataToDataDly2 = 0;
+            uint dataToCsDly2 = 0;
+            uint txFerSize2 = 3;     // I/O expander xFer size set to 4
+            byte spiMd2 = 0;
+            uint csMask4 = 0x01; //GP2 as CS  // 0x10 set GP4 as CS
+
+            byte[] txData = new byte[2], rxData = new byte[2];
+            switch (axAdjust)
+            {
+                // set the expander config params
+                case AxAdjust.Min:
+                {
+                    txData[0] = 0x00;
+                    txData[1] = 0x00;
+                }
+                    break;
+                case AxAdjust.Mid:
+                {
+                    txData[0] = 0x08;
+                    txData[1] = 0x00;
+                }
+                    break;
+                case AxAdjust.Max:
+                {
+                    txData[0] = 0x03;
+                    txData[1] = 0xFF;
+                }
+                    break;
+            }
+
+            // send the data
+            // use the extended SPI xFer API first time in order to set all the parameters
+            // the subsequent xFer with the same device may use the simple API in order to save CPU cycles
+            _response = MCP2210.M_Mcp2210_xferSpiDataEx(_deviceHandle, txData, rxData, ref baudRate2, ref txFerSize2, csMask4, ref idleCsVal2, ref activeCsVal2, ref csToDataDly2,
+                ref dataToCsDly2, ref dataToDataDly2, ref spiMd2);
+            if (_response != MCP2210.M_E_SUCCESS)
+            {
+                MCP2210.M_Mcp2210_Close(_deviceHandle);
+                Console.WriteLine(" Transfer error: " + _response);
+                _deviceCount = 0;
+                return _response;
+            }
+            return 0;
         }
     }
 }

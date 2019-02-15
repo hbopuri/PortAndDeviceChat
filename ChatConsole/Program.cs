@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using CommandLine;
 using Smart.Agent.Business;
 using Smart.Agent.Constant;
@@ -20,7 +21,7 @@ namespace FinalCal
 
         [STAThread]
         // ReSharper disable once UnusedParameter.Local
-        static void Main(string[] args)
+        static async Task Main(string[] args)
         {
             Console.Clear();
             Parser.Default.ParseArguments<Options>(args)
@@ -50,7 +51,7 @@ namespace FinalCal
             GetBoardId();
             Console.WriteLine();
             DataPortConfig defaultDataPortConfig = _smartPort.GetDefaultDataPortConfig();
-            _smartPort.Init(_boardId, _defaultComPort, _options);
+            await _smartPort.Init(_boardId, _defaultComPort, _options);
             if (!_smartPort.Start())
                 return;
             var readDataPortConfig = _smartPort.ReadDataPortConfig();
@@ -68,11 +69,9 @@ namespace FinalCal
                             Console.ForegroundColor = borderColor;
                             foreach (var sensor in (List<Sensor>) portTask.Result.ReturnObject)
                             {
-                                if (sensor.Data != null && sensor.Data.Any())
-                                {
+                                //if (sensor.Data != null && sensor.Data.Any())
                                     SmartLog.WriteLine(
                                         $"{sensor.Afe} ({sensor.Data.Count} samples): {sensor.Type}:{Math.Truncate(sensor.Data.Average(x => x.Value))}");
-                                    }
                             }
 
                             borderColor = ConsoleColor.White;

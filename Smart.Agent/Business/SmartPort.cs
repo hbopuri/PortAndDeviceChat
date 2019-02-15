@@ -10,6 +10,7 @@ using Smart.Agent.Constant;
 using Smart.Agent.Model;
 using Smart.Hid;
 using Smart.Log;
+using Smart.Log.Enum;
 using Smart.Log.Helper;
 using Queue = Smart.Agent.Model.Queue;
 
@@ -693,7 +694,7 @@ namespace Smart.Agent.Business
             //SmartLog.WriteLine(response);
         }
 
-        public void Init(byte interfaceId, string commPort, Options options)
+        public async Task Init(byte interfaceId, string commPort, Options options)
         {
             _options = options;
             _port = new SerialPort(commPort,
@@ -701,6 +702,7 @@ namespace Smart.Agent.Business
             _port.DataReceived += port_DataReceived;
             _commaQueue = new Queue(interfaceId);
             _commaQueue.LoadLcmQueue();
+            await UsbToSpiConverter.Init();
         }
 
         public bool Start()
@@ -817,7 +819,7 @@ namespace Smart.Agent.Business
                 case 5:
                     try
                     {
-                        await UsbToSpiConverter.Increment();
+                        await UsbToSpiConverter.IncrementOrDecrementStrain(SgAdjust.Increment);
                     }
                     catch (Exception ex)
                     {
@@ -829,7 +831,7 @@ namespace Smart.Agent.Business
                 case 6:
                     try
                     {
-                        await SmartDevice.DecrementAsync();
+                        await UsbToSpiConverter.IncrementOrDecrementStrain(SgAdjust.Decrement);
                     }
                     catch (Exception ex)
                     {
@@ -841,7 +843,7 @@ namespace Smart.Agent.Business
                 case 7:
                     try
                     {
-                        await SmartDevice.SaveAsync();
+                        await UsbToSpiConverter.IncrementOrDecrementAx(AxAdjust.Min);
                     }
                     catch (Exception ex)
                     {
@@ -853,7 +855,7 @@ namespace Smart.Agent.Business
                 case 8:
                     try
                     {
-                        PowerOff();
+                        await UsbToSpiConverter.IncrementOrDecrementAx(AxAdjust.Mid);
                     }
                     catch (Exception ex)
                     {
@@ -863,6 +865,42 @@ namespace Smart.Agent.Business
 
                     return await Task.FromResult(loopResponse);
                 case 9:
+                    try
+                    {
+                        await UsbToSpiConverter.IncrementOrDecrementAx(AxAdjust.Max);
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.Clear();
+                        SmartLog.WriteLine(ex.ToString());
+                    }
+
+                    return await Task.FromResult(loopResponse);
+                case 10:
+                    try
+                    {
+                        await UsbToSpiConverter.IncrementOrDecrementStrain(SgAdjust.Save);
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.Clear();
+                        SmartLog.WriteLine(ex.ToString());
+                    }
+
+                    return await Task.FromResult(loopResponse);
+                case 11:
+                    try
+                    {
+                        PowerOff();
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.Clear();
+                        SmartLog.WriteLine(ex.ToString());
+                    }
+
+                    return await Task.FromResult(loopResponse);
+                case 12:
                     try
                     {
                         var response = ReadDataPortConfig();
@@ -888,26 +926,31 @@ namespace Smart.Agent.Business
                 SmartLog.WriteLine("\nSerial Port Menu");
                 SmartLog.WriteLine("--------------------------------------------------------");
                 //SmartLog.WriteLine();
-                SmartLog.WriteLine("1. Issue COLLECT Command");
-                SmartLog.WriteLine("2. Issue READ DATA PORT CONFIG Command");
+                SmartLog.WriteLine("A. Issue COLLECT Command");
+                SmartLog.WriteLine("B. Issue READ DATA PORT CONFIG Command");
                 //SmartLog.WriteLine("3. Move Next");
-                SmartLog.WriteLine("4. Start EDC All Over");
-                SmartLog.WriteLine("5. Increment AFE Device");
-                SmartLog.WriteLine("6. Decrement AFE Device");
-                SmartLog.WriteLine("7. Save AFE");
-                SmartLog.WriteLine("8. Power Off");
-                SmartLog.WriteLine("9. Force Write Date Port Config");
+                SmartLog.WriteLine("C. Start EDC All Over");
+                SmartLog.WriteLine("D. Increment Strain Gauge");
+                SmartLog.WriteLine("E. Decrement Strain Gauge");
+                SmartLog.WriteLine("F. Min Accelerometer");
+                SmartLog.WriteLine("G. Mid Accelerometer");
+                SmartLog.WriteLine("H. Max Accelerometer");
+                SmartLog.WriteLine("I. Save AFE");
+                SmartLog.WriteLine("J. Power Off");
+                SmartLog.WriteLine("K. Force Write Date Port Config");
                 SmartLog.WriteLine("\nPlease select the option from above:");
                 var consoleKey = Console.ReadKey();
-                if (consoleKey.KeyChar == '1') return 1;
-                if (consoleKey.KeyChar == '2') return 2;
-                if (consoleKey.KeyChar == '3') return 3;
-                if (consoleKey.KeyChar == '4') return 4;
-                if (consoleKey.KeyChar == '5') return 5;
-                if (consoleKey.KeyChar == '6') return 6;
-                if (consoleKey.KeyChar == '7') return 7;
-                if (consoleKey.KeyChar == '8') return 8;
-                if (consoleKey.KeyChar == '9') return 9;
+                if (char.ToUpperInvariant(consoleKey.KeyChar) == 'A') return 1;
+                if (char.ToUpperInvariant(consoleKey.KeyChar) == 'B') return 2;
+                if (char.ToUpperInvariant(consoleKey.KeyChar) == 'C') return 4;
+                if (char.ToUpperInvariant(consoleKey.KeyChar) == 'D') return 5;
+                if (char.ToUpperInvariant(consoleKey.KeyChar) == 'E') return 6;
+                if (char.ToUpperInvariant(consoleKey.KeyChar) == 'F') return 7;
+                if (char.ToUpperInvariant(consoleKey.KeyChar) == 'G') return 8;
+                if (char.ToUpperInvariant(consoleKey.KeyChar) == 'H') return 9;
+                if (char.ToUpperInvariant(consoleKey.KeyChar) == 'I') return 10;
+                if (char.ToUpperInvariant(consoleKey.KeyChar) == 'J') return 11;
+                if (char.ToUpperInvariant(consoleKey.KeyChar) == 'K') return 12;
             }
         }
 
@@ -930,6 +973,7 @@ namespace Smart.Agent.Business
                 x.CommandName.Equals("COLLECT", StringComparison.OrdinalIgnoreCase));
             if (collectCommand != null)
             {
+                collectCommand.WaitForNext = 3;
                 //collectCommand.MaxRetry = 15;
                 ExecuteCommand(collectCommand);
             }
@@ -969,8 +1013,8 @@ namespace Smart.Agent.Business
             return new DataPortConfig
             {
                 FirmwareVersion = new byte[] {0x02, 0xBC},
-                //ActChannelsDataPacking = new byte[] {0x41},
-                ActChannelsDataPacking = new byte[] { 0x21 },
+                ActChannelsDataPacking = new byte[] {0x41},
+                //ActChannelsDataPacking = new byte[] { 0x21 },
                 SampleInterval = new byte[] {0x00, 0x04}
             };
         }

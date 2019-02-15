@@ -41,6 +41,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Enum\SgAdjust.cs" />
     <Compile Include="Helper\Convertor.cs" />
     <Compile Include="Model\LoopResponse.cs" />
     <Compile Include="SmartLog.cs" />

@@ -6,8 +6,8 @@
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <ProjectGuid>{05C32096-D150-4918-8490-5F2E49BD4890}</ProjectGuid>
     <OutputType>Exe</OutputType>
-    <RootNamespace>FinalCal</RootNamespace>
-    <AssemblyName>FinalCal</AssemblyName>
+    <RootNamespace>AfeCalibration</RootNamespace>
+    <AssemblyName>AfeCalibration</AssemblyName>
     <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
@@ -50,7 +50,8 @@
     <LangVersion>7.1</LangVersion>
   </PropertyGroup>
   <PropertyGroup>
-    <StartupObject>FinalCal.Program</StartupObject>
+    <StartupObject>
+    </StartupObject>
   </PropertyGroup>
   <PropertyGroup>
     <ApplicationIcon>apple-touch-icon-57-precomposed.ico</ApplicationIcon>

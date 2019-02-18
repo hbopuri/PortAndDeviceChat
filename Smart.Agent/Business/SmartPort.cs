@@ -820,6 +820,7 @@ namespace Smart.Agent.Business
                     try
                     {
                         await UsbToSpiConverter.IncrementOrDecrementStrain(SgAdjust.Increment);
+                        //loopResponse.ReturnObject = Collect();
                     }
                     catch (Exception ex)
                     {
@@ -832,6 +833,7 @@ namespace Smart.Agent.Business
                     try
                     {
                         await UsbToSpiConverter.IncrementOrDecrementStrain(SgAdjust.Decrement);
+                       // loopResponse.ReturnObject = Collect();
                     }
                     catch (Exception ex)
                     {
@@ -844,6 +846,7 @@ namespace Smart.Agent.Business
                     try
                     {
                         await UsbToSpiConverter.IncrementOrDecrementAx(AxAdjust.Min);
+                        //loopResponse.ReturnObject = Collect();
                     }
                     catch (Exception ex)
                     {
@@ -856,6 +859,7 @@ namespace Smart.Agent.Business
                     try
                     {
                         await UsbToSpiConverter.IncrementOrDecrementAx(AxAdjust.Mid);
+                        //loopResponse.ReturnObject = Collect();
                     }
                     catch (Exception ex)
                     {
@@ -868,6 +872,7 @@ namespace Smart.Agent.Business
                     try
                     {
                         await UsbToSpiConverter.IncrementOrDecrementAx(AxAdjust.Max);
+                        //loopResponse.ReturnObject = Collect();
                     }
                     catch (Exception ex)
                     {
@@ -880,6 +885,7 @@ namespace Smart.Agent.Business
                     try
                     {
                         await UsbToSpiConverter.IncrementOrDecrementStrain(SgAdjust.Save);
+                        //loopResponse.ReturnObject = Collect();
                     }
                     catch (Exception ex)
                     {
@@ -918,27 +924,31 @@ namespace Smart.Agent.Business
             return await Task.FromResult(loopResponse);
         }
 
-        public int Menu()
+        public int Menu(bool printMenu)
         {
             while (true)
             {
-                //Console.Clear();
-                SmartLog.WriteLine("\nSerial Port Menu");
-                SmartLog.WriteLine("--------------------------------------------------------");
-                //SmartLog.WriteLine();
-                SmartLog.WriteLine("A. Issue COLLECT Command");
-                SmartLog.WriteLine("B. Issue READ DATA PORT CONFIG Command");
-                //SmartLog.WriteLine("3. Move Next");
-                SmartLog.WriteLine("C. Start EDC All Over");
-                SmartLog.WriteLine("D. Increment Strain Gauge");
-                SmartLog.WriteLine("E. Decrement Strain Gauge");
-                SmartLog.WriteLine("F. Min Accelerometer");
-                SmartLog.WriteLine("G. Mid Accelerometer");
-                SmartLog.WriteLine("H. Max Accelerometer");
-                SmartLog.WriteLine("I. Save AFE");
-                SmartLog.WriteLine("J. Power Off");
-                SmartLog.WriteLine("K. Force Write Date Port Config");
-                SmartLog.WriteLine("\nPlease select the option from above:");
+                if (printMenu)
+                {
+                    //Console.Clear();
+                    SmartLog.WriteLine("\nSerial Port Menu");
+                    SmartLog.WriteLine("--------------------------------------------------------");
+                    //SmartLog.WriteLine();
+                    SmartLog.WriteLine("A. Issue COLLECT Command");
+                    SmartLog.WriteLine("B. Issue READ DATA PORT CONFIG Command");
+                    //SmartLog.WriteLine("3. Move Next");
+                    SmartLog.WriteLine("C. Start EDC All Over");
+                    SmartLog.WriteLine("D. Increment Strain Gauge");
+                    SmartLog.WriteLine("E. Decrement Strain Gauge");
+                    SmartLog.WriteLine("F. Min Accelerometer");
+                    SmartLog.WriteLine("G. Mid Accelerometer");
+                    SmartLog.WriteLine("H. Max Accelerometer");
+                    SmartLog.WriteLine("I. Save AFE");
+                    SmartLog.WriteLine("J. Power Off");
+                    SmartLog.WriteLine("K. Force Write Date Port Config");
+                    SmartLog.WriteLine("\nPlease select the option from above:");
+                }
+
                 var consoleKey = Console.ReadKey();
                 if (char.ToUpperInvariant(consoleKey.KeyChar) == 'A') return 1;
                 if (char.ToUpperInvariant(consoleKey.KeyChar) == 'B') return 2;

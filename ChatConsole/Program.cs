@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.AccessControl;
 using System.Threading.Tasks;
 using CommandLine;
 using Smart.Agent.Business;
@@ -10,7 +11,7 @@ using Smart.Agent.Model;
 using Smart.Log;
 using Smart.Log.Helper;
 
-namespace FinalCal
+namespace AfeCalibration
 {
     class Program
     {
@@ -18,7 +19,7 @@ namespace FinalCal
         private static SmartPort _smartPort;
         private static string _defaultComPort;
         private static Options _options;
-
+        private static bool _printMenu = true;
         [STAThread]
         // ReSharper disable once UnusedParameter.Local
         static async Task Main(string[] args)
@@ -92,7 +93,9 @@ namespace FinalCal
                     }
                 }
 
-                portTask = _smartPort.Go(menuOption: _smartPort.Menu());
+                //portTask = _smartPort.Go(menuOption: _smartPort.Menu());
+                portTask = _smartPort.Go(menuOption: _smartPort.Menu(_printMenu));
+                _printMenu = false;
             }
 
             SmartLog.WriteLine("Type exit to quite\n");
@@ -138,7 +141,7 @@ namespace FinalCal
         {
             ConsoleColor BorderColor = ConsoleColor.Cyan;
             Console.ForegroundColor = BorderColor;
-            SmartLog.WriteLine("\nSmartPile AFE Bridge Balancing (Final CAL)");
+            SmartLog.WriteLine(" Analog Front End (AFE) Calibration");
             SmartLog.WriteLine("--------------------------------------------------------");
             SmartLog.WriteLine("--------------------------------------------------------");
         }

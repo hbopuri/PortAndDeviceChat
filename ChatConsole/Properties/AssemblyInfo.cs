@@ -5,11 +5,11 @@ using System.Runtime.InteropServices;
 // General Information about an assembly is controlled through the following
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
-[assembly: AssemblyTitle("AFE Bridge Balancing - Final CAL")]
+[assembly: AssemblyTitle("AFE Calibration")]
 [assembly: AssemblyDescription("Author: Harsha Bopuri")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("Smart Structures Inc")]
-[assembly: AssemblyProduct("AFE Bridge Balancing")]
+[assembly: AssemblyProduct("AFE Calibration")]
 [assembly: AssemblyCopyright("Copyright © SmartStructure 2019")]
 [assembly: AssemblyTrademark("SmartPile®")]
 [assembly: AssemblyCulture("")]

@@ -2,6 +2,7 @@
 using System.Text;
 using System.Threading.Tasks;
 using mcp2210_dll_m;
+using Smart.Log;
 using Smart.Log.Enum;
 
 namespace Smart.Hid
@@ -18,20 +19,24 @@ namespace Smart.Hid
         public static async Task<int> Init()
         {
             _deviceCount = MCP2210.M_Mcp2210_GetConnectedDevCount(DefaultVid, DefaultPid);
-            Console.WriteLine(_deviceCount + " devices found");
+            SmartLog.WriteLine(_deviceCount + " devices found");
             if (_deviceCount <= 0) return _response;
             StringBuilder path = new StringBuilder();
             _deviceHandle = MCP2210.M_Mcp2210_OpenByIndex(DefaultVid, DefaultPid, 0, path);
             _response = MCP2210.M_Mcp2210_GetLastError();
             if (_response != MCP2210.M_E_SUCCESS)
             {
-                Console.WriteLine("Failed to open connection");
+                SmartLog.WriteErrorLine("Failed to open connection");
                 return await Task.FromResult(-1);
             }
 
             return _response;
         }
-
+        public static void Close()
+        {
+            MCP2210.M_Mcp2210_Close(_deviceHandle);
+            _deviceCount = 0;
+        }
         public static async Task<int> IncrementOrDecrementStrain(SgAdjust sgAdjust)
         {
             if (_deviceCount == 0)
@@ -76,9 +81,13 @@ namespace Smart.Hid
             if (_response != MCP2210.M_E_SUCCESS)
             {
                 MCP2210.M_Mcp2210_Close(_deviceHandle);
-                Console.WriteLine(" Transfer error: " + _response);
+                SmartLog.WriteErrorLine($"Sg ({sgAdjust.ToString()}) transfer error: " + _response);
                 _deviceCount = 0;
                 return _response;
+            }
+            else
+            {
+                SmartLog.WriteLine($"Ax ({sgAdjust.ToString()}) transfer response: " + _response);
             }
             return 0;
         }
@@ -92,14 +101,14 @@ namespace Smart.Hid
 
             // set the SPI xFer params for I/O expander
             uint baudRate2 = 250000; //1000000
-            uint idleCsVal2 = 0x1ff;
-            uint activeCsVal2 = 0x1fb;//GP0 CS PIN, remaining pins are GP //0x1ee GP4 and GP0 set as active low CS
+            uint idleCsVal2 = 0x01;
+            uint activeCsVal2 = 0x1fe;//GP0 CS PIN, remaining pins are GP //0x1ee GP4 and GP0 set as active low CS
             uint csToDataDly2 = 0;
             uint dataToDataDly2 = 0;
             uint dataToCsDly2 = 0;
-            uint txFerSize2 = 3;     // I/O expander xFer size set to 4
+            uint txFerSize2 = 2;     // I/O expander xFer size set to 4
             byte spiMd2 = 0;
-            uint csMask4 = 0x01; //GP2 as CS  // 0x10 set GP4 as CS
+            uint csMask4 = 0x01; //GP0 as CS  // 0x10 set GP4 as CS
 
             byte[] txData = new byte[2], rxData = new byte[2];
             switch (axAdjust)
@@ -130,12 +139,17 @@ namespace Smart.Hid
             // the subsequent xFer with the same device may use the simple API in order to save CPU cycles
             _response = MCP2210.M_Mcp2210_xferSpiDataEx(_deviceHandle, txData, rxData, ref baudRate2, ref txFerSize2, csMask4, ref idleCsVal2, ref activeCsVal2, ref csToDataDly2,
                 ref dataToCsDly2, ref dataToDataDly2, ref spiMd2);
+
             if (_response != MCP2210.M_E_SUCCESS)
             {
                 MCP2210.M_Mcp2210_Close(_deviceHandle);
-                Console.WriteLine(" Transfer error: " + _response);
+                SmartLog.WriteErrorLine($"Ax ({axAdjust.ToString()}) transfer error: " + _response);
                 _deviceCount = 0;
                 return _response;
+            }
+            else
+            {
+                SmartLog.WriteLine($"Ax ({axAdjust.ToString()}) transfer response: " + _response);
             }
             return 0;
         }

@@ -100,14 +100,14 @@ namespace Smart.Hid
 
             // set the SPI xFer params for I/O expander
             uint baudRate2 = 250000; //1000000
-            uint idleCsVal2 = 0x01;
-            uint activeCsVal2 = 0x1fe;//GP0 CS PIN, remaining pins are GP //0x1ee GP4 and GP0 set as active low CS
+            uint idleCsVal2 = 0x100;
+            uint activeCsVal2 = 0x1fb;//GP2 CS PIN, remaining pins are GP //0x1ee GP4 and GP0 set as active low CS
             uint csToDataDly2 = 0;
             uint dataToDataDly2 = 0;
             uint dataToCsDly2 = 0;
             uint txFerSize2 = 2;     // I/O expander xFer size set to 4
             byte spiMd2 = 0;
-            uint csMask4 = 0x01; //GP0 as CS  // 0x10 set GP4 as CS
+            uint csMask4 = 0x100; //GP0 as CS  // 0x10 set GP4 as CS
           
             byte[] txData = new byte[2], rxData = new byte[2];
             switch (axAdjust)

@@ -1025,7 +1025,9 @@ namespace Smart.Agent.Business
                 FirmwareVersion = new byte[] {0x02, 0xBC},
                 ActChannelsDataPacking = new byte[] {0x41},
                 //ActChannelsDataPacking = new byte[] { 0x21 },
-                SampleInterval = new byte[] {0x00, 0x04}
+                SampleInterval = new byte[] {0x00, 0x04},
+                ModeFlag = new byte[] {0x41} // Turn On Mode Flag
+                //ModeFlag = new byte[] { 0x42 } // Turn Off Mode Flag
             };
         }
 
@@ -1053,6 +1055,8 @@ namespace Smart.Agent.Business
             complete[15] = defaultSettings.SampleInterval[0];
             //complete[14] = 0x02;
             //complete[15] = 0x00;
+
+            complete[17] = defaultSettings.ModeFlag[0];
 
             var currentUtcTime = DateTime.UtcNow.ToFourBytes();
             complete[20] = currentUtcTime[3];

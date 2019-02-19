@@ -66,10 +66,10 @@ namespace AfeCalibration
                     {
                         if (portTask.Result.ReturnObject != null)
                         {
-                            var sensors = ((List<Sensor>) portTask.Result.ReturnObject).Take(2).ToList();
+                            var sensors = ((List<Sensor>) portTask.Result.ReturnObject);
                             PrintCollectResponse(sensors);
-                            await AdjustStrain(readDataPortConfig, sensors);
-                            await AdjustAx(readDataPortConfig, sensors);
+                            await AdjustStrain(readDataPortConfig, sensors.Take(2).ToList());
+                            await AdjustAx(readDataPortConfig, sensors.Take(2).ToList());
                         }
 
                         break;
@@ -209,7 +209,12 @@ namespace AfeCalibration
                 SmartLog.WriteLine(
                     $"Firmware Version {dataPortConfig.FirmwareVersion.ToHex()} not matching with default {defaultDataPortConfig.FirmwareVersion.ToHex()}");
             }
-
+            if (!dataPortConfig.ModeFlag.SequenceEqual(defaultDataPortConfig.ModeFlag))
+            {
+                isValid = false;
+                SmartLog.WriteLine(
+                    $"Mode Flag {dataPortConfig.ModeFlag.ToHex()} not matching with default {defaultDataPortConfig.ModeFlag.ToHex()}");
+            }
             if (!isValid)
             {
                 _smartPort.WriteDataPortConfig(_boardId, dataPortConfig, defaultDataPortConfig);

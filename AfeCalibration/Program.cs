@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Security.AccessControl;
 using System.Threading.Tasks;
 using CommandLine;
 using Smart.Agent.Business;
@@ -20,6 +19,7 @@ namespace AfeCalibration
         private static string _defaultComPort;
         private static Options _options;
         private static bool _printMenu = true;
+
         [STAThread]
         // ReSharper disable once UnusedParameter.Local
         static async Task Main(string[] args)
@@ -58,7 +58,7 @@ namespace AfeCalibration
             var readDataPortConfig = _smartPort.ReadDataPortConfig();
             CompareDataPortConfig(readDataPortConfig, defaultDataPortConfig);
             var portTask = _smartPort.Go(menuOption: CommandType.Collect);
-            while (portTask.Result.Selection != CommandType.PowerOff)
+            while (portTask.Result.Selection != CommandType.PowerOff && portTask.Result.Selection != CommandType.SaveSg)
             {
                 switch (portTask.Result.Selection)
                 {
@@ -66,17 +66,10 @@ namespace AfeCalibration
                     {
                         if (portTask.Result.ReturnObject != null)
                         {
-                            ConsoleColor borderColor = ConsoleColor.Yellow;
-                            Console.ForegroundColor = borderColor;
-                            foreach (var sensor in (List<Sensor>) portTask.Result.ReturnObject)
-                            {
-                                //if (sensor.Data != null && sensor.Data.Any())
-                                    SmartLog.WriteLine(
-                                        $"{sensor.Afe} ({sensor.Data.Count} samples): {sensor.Type}:{Math.Truncate(sensor.Data.Average(x => x.Value))}");
-                            }
-
-                            borderColor = ConsoleColor.White;
-                            Console.ForegroundColor = borderColor;
+                            var sensors = ((List<Sensor>) portTask.Result.ReturnObject).Take(2).ToList();
+                            PrintCollectResponse(sensors);
+                            await AdjustStrain(readDataPortConfig, sensors);
+                            await AdjustAx(readDataPortConfig, sensors);
                         }
 
                         break;
@@ -85,7 +78,7 @@ namespace AfeCalibration
                     {
                         if (portTask.Result.ReturnObject != null)
                         {
-                            var dataPortConfig = ((DataPortConfig)portTask.Result.ReturnObject);
+                            var dataPortConfig = ((DataPortConfig) portTask.Result.ReturnObject);
                             CompareDataPortConfig(dataPortConfig, defaultDataPortConfig);
                         }
 
@@ -105,6 +98,92 @@ namespace AfeCalibration
             }
 
             //_smartPort.PowerOff();
+        }
+
+        private static async Task AdjustAx(DataPortConfig readDataPortConfig, List<Sensor> sensors)
+        {
+            if (readDataPortConfig.SensorChannels.Any(x =>
+                x.Type.ToDecimal(0) == (int)SensorType.Accelerometer))
+            {
+                var axSensors = sensors.Where(x => x.Type == SensorType.Accelerometer).ToList();
+                Task<LoopResponse> portTask;
+                while (axSensors.Select(s => Math.Truncate(s.Data.Average(x => x.Value)))
+                    .All(x => x < AxRange.Min))
+                {
+                    await _smartPort.Go(menuOption: CommandType.MaxAx);
+                    portTask = _smartPort.Go(menuOption: CommandType.Collect);
+                    axSensors = ((List<Sensor>)portTask.Result.ReturnObject).Take(2)
+                        .Where(x => x.Type == SensorType.Accelerometer).ToList();
+                    PrintCollectResponse(axSensors);
+                }
+
+                while (axSensors.Select(s => Math.Truncate(s.Data.Average(x => x.Value)))
+                    .All(x => x > AxRange.Max))
+                {
+                    await _smartPort.Go(menuOption: CommandType.MinAx);
+                    portTask = _smartPort.Go(menuOption: CommandType.Collect);
+                    axSensors = ((List<Sensor>)portTask.Result.ReturnObject).Take(2)
+                        .Where(x => x.Type == SensorType.Accelerometer).ToList();
+                    PrintCollectResponse(axSensors);
+                }
+
+                if (axSensors.Select(s => Math.Truncate(s.Data.Average(x => x.Value)))
+                        .All(x => x < AxRange.Max)
+                    && axSensors.Select(s => Math.Truncate(s.Data.Average(x => x.Value)))
+                        .All(x => x > AxRange.Min))
+                {
+                    //await _smartPort.Go(menuOption: CommandType.SaveSg);
+                }
+            }
+        }
+        private static async Task AdjustStrain(DataPortConfig readDataPortConfig, List<Sensor> sensors)
+        {
+            if (readDataPortConfig.SensorChannels.Any(x =>
+                x.Type.ToDecimal(0) == (int) SensorType.StrainGauge))
+            {
+                var strainSensors = sensors.Where(x => x.Type == SensorType.StrainGauge).ToList();
+                Task<LoopResponse> portTask;
+                while (strainSensors.Select(s => Math.Truncate(s.Data.Average(x => x.Value)))
+                    .All(x => x < StrainRange.Min))
+                {
+                    await _smartPort.Go(menuOption: CommandType.IncrementSg);
+                    portTask = _smartPort.Go(menuOption: CommandType.Collect);
+                    strainSensors = ((List<Sensor>) portTask.Result.ReturnObject).Take(2)
+                        .Where(x => x.Type == SensorType.StrainGauge).ToList();
+                    PrintCollectResponse(strainSensors);
+                }
+
+                while (strainSensors.Select(s => Math.Truncate(s.Data.Average(x => x.Value)))
+                    .All(x => x > StrainRange.Max))
+                {
+                    await _smartPort.Go(menuOption: CommandType.DecrementSg);
+                    portTask = _smartPort.Go(menuOption: CommandType.Collect);
+                    strainSensors = ((List<Sensor>) portTask.Result.ReturnObject).Take(2)
+                        .Where(x => x.Type == SensorType.StrainGauge).ToList();
+                    PrintCollectResponse(strainSensors);
+                }
+
+                if (strainSensors.Select(s => Math.Truncate(s.Data.Average(x => x.Value)))
+                        .All(x => x < StrainRange.Max)
+                    && strainSensors.Select(s => Math.Truncate(s.Data.Average(x => x.Value)))
+                        .All(x => x > StrainRange.Min))
+                {
+                    await _smartPort.Go(menuOption: CommandType.SaveSg);
+                }
+            }
+        }
+
+        private static void PrintCollectResponse(List<Sensor> sensors)
+        {
+            ConsoleColor borderColor = ConsoleColor.Yellow;
+            Console.ForegroundColor = borderColor;
+            foreach (var sensor in sensors)
+            {
+                SmartLog.WriteLine(
+                    $"{sensor.Afe} ({sensor.Data.Count} samples): {sensor.Type}:{Math.Truncate(sensor.Data.Average(x => x.Value))}");
+            }
+            borderColor = ConsoleColor.White;
+            Console.ForegroundColor = borderColor;
         }
 
         private static void CompareDataPortConfig(DataPortConfig dataPortConfig, DataPortConfig defaultDataPortConfig)

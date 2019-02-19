@@ -2,6 +2,16 @@
 
 namespace Smart.Agent.Model
 {
+    public class StrainRange
+    {
+        public const int Min = 1090;
+        public const int Max = 1094;
+    }
+    public class AxRange
+    {
+        public const int Min = 2046;
+        public const int Max = 2050;
+    }
     public enum Afe
     {
         Tip,

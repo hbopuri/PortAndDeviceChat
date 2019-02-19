@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
 VisualStudioVersion = 15.0.28307.271
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AfeCalibration", "ChatConsole\AfeCalibration.csproj", "{05C32096-D150-4918-8490-5F2E49BD4890}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AfeCalibration", "AfeCalibration\AfeCalibration.csproj", "{05C32096-D150-4918-8490-5F2E49BD4890}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Smart.Agent", "Smart.Agent\Smart.Agent.csproj", "{BE6F599C-07F9-46DF-88DC-2D1691C2FB72}"
 EndProject

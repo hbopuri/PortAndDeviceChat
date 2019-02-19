@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using mcp2210_dll_m;
@@ -15,11 +16,11 @@ namespace Smart.Hid
         private static IntPtr _deviceHandle;
         private static int _response;
         private static int _deviceCount;
-
+        private static int _value = 2048;
         public static async Task<int> Init()
         {
             _deviceCount = MCP2210.M_Mcp2210_GetConnectedDevCount(DefaultVid, DefaultPid);
-            SmartLog.WriteLine(_deviceCount + " devices found");
+            SmartLog.WriteLine(_deviceCount + " SPI Module Device(s) found");
             if (_deviceCount <= 0) return _response;
             StringBuilder path = new StringBuilder();
             _deviceHandle = MCP2210.M_Mcp2210_OpenByIndex(DefaultVid, DefaultPid, 0, path);
@@ -85,10 +86,8 @@ namespace Smart.Hid
                 _deviceCount = 0;
                 return _response;
             }
-            else
-            {
-                SmartLog.WriteLine($"Ax ({sgAdjust.ToString()}) transfer response: " + _response);
-            }
+
+            SmartLog.WriteLine($"Sg ({sgAdjust.ToString()}) transfer response: " + _response);
             return 0;
         }
         public static async Task<int> IncrementOrDecrementAx(AxAdjust axAdjust)
@@ -109,15 +108,18 @@ namespace Smart.Hid
             uint txFerSize2 = 2;     // I/O expander xFer size set to 4
             byte spiMd2 = 0;
             uint csMask4 = 0x01; //GP0 as CS  // 0x10 set GP4 as CS
-
+          
             byte[] txData = new byte[2], rxData = new byte[2];
             switch (axAdjust)
             {
                 // set the expander config params
                 case AxAdjust.Min:
                 {
-                    txData[0] = 0x00;
-                    txData[1] = 0x00;
+                    _value--;
+                    var decrementArray = BitConverter.GetBytes(_value);
+                    txData = decrementArray.Take(2).ToArray();
+                    //    txData[0] = 0x00;
+                    //txData[1] = 0x00;
                 }
                     break;
                 case AxAdjust.Mid:
@@ -128,8 +130,12 @@ namespace Smart.Hid
                     break;
                 case AxAdjust.Max:
                 {
-                    txData[0] = 0x03;
-                    txData[1] = 0xFF;
+                    _value++;
+                    var incrementArray = BitConverter.GetBytes(_value);
+                    txData = incrementArray.Take(2).ToArray();
+
+                    //txData[0] = 0x03;
+                    //txData[1] = 0xFF;
                 }
                     break;
             }
@@ -147,10 +153,8 @@ namespace Smart.Hid
                 _deviceCount = 0;
                 return _response;
             }
-            else
-            {
-                SmartLog.WriteLine($"Ax ({axAdjust.ToString()}) transfer response: " + _response);
-            }
+
+            SmartLog.WriteLine($"Ax ({axAdjust.ToString()}) transfer response: " + _response);
             return 0;
         }
     }

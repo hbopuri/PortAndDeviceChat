@@ -776,7 +776,7 @@ namespace Smart.Agent.Business
             var loopResponse = new LoopResponse {Selection = menuOption};
             switch (menuOption)
             {
-                case 1:
+                case CommandType.Collect:
                     try
                     {
                         _sensors = new List<Sensor>();
@@ -789,7 +789,7 @@ namespace Smart.Agent.Business
                     }
 
                     return await Task.FromResult(loopResponse);
-                case 2:
+                case CommandType.ReadDataPort:
                     try
                     {
                         loopResponse.ReturnObject = ReadDataPortConfig();
@@ -813,10 +813,10 @@ namespace Smart.Agent.Business
                     }
 
                     return await Task.FromResult(loopResponse);
-                case 4:
+                case CommandType.StartEdcAllOver:
                     loopResponse.ReturnObject = Start();
                     return await Task.FromResult(loopResponse);
-                case 5:
+                case CommandType.IncrementSg:
                     try
                     {
                         await UsbToSpiConverter.IncrementOrDecrementStrain(SgAdjust.Increment);
@@ -829,11 +829,11 @@ namespace Smart.Agent.Business
                     }
 
                     return await Task.FromResult(loopResponse);
-                case 6:
+                case CommandType.DecrementSg:
                     try
                     {
                         await UsbToSpiConverter.IncrementOrDecrementStrain(SgAdjust.Decrement);
-                       // loopResponse.ReturnObject = Collect();
+                        // loopResponse.ReturnObject = Collect();
                     }
                     catch (Exception ex)
                     {
@@ -842,7 +842,7 @@ namespace Smart.Agent.Business
                     }
 
                     return await Task.FromResult(loopResponse);
-                case 7:
+                case CommandType.MinAx:
                     try
                     {
                         await UsbToSpiConverter.IncrementOrDecrementAx(AxAdjust.Min);
@@ -855,7 +855,7 @@ namespace Smart.Agent.Business
                     }
 
                     return await Task.FromResult(loopResponse);
-                case 8:
+                case CommandType.MidAx:
                     try
                     {
                         await UsbToSpiConverter.IncrementOrDecrementAx(AxAdjust.Mid);
@@ -868,7 +868,7 @@ namespace Smart.Agent.Business
                     }
 
                     return await Task.FromResult(loopResponse);
-                case 9:
+                case CommandType.MaxAx:
                     try
                     {
                         await UsbToSpiConverter.IncrementOrDecrementAx(AxAdjust.Max);
@@ -881,7 +881,7 @@ namespace Smart.Agent.Business
                     }
 
                     return await Task.FromResult(loopResponse);
-                case 10:
+                case CommandType.SaveSg:
                     try
                     {
                         await UsbToSpiConverter.IncrementOrDecrementStrain(SgAdjust.Save);
@@ -894,7 +894,7 @@ namespace Smart.Agent.Business
                     }
 
                     return await Task.FromResult(loopResponse);
-                case 11:
+                case CommandType.PowerOff:
                     try
                     {
                         PowerOff();
@@ -906,7 +906,7 @@ namespace Smart.Agent.Business
                     }
 
                     return await Task.FromResult(loopResponse);
-                case 12:
+                case CommandType.WriteDataPort:
                     try
                     {
                         var response = ReadDataPortConfig();

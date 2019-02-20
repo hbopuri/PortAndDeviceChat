@@ -106,33 +106,51 @@ namespace AfeCalibration
                 x.Type.ToDecimal(0) == (int)SensorType.Accelerometer))
             {
                 var axSensors = sensors.Where(x => x.Type == SensorType.Accelerometer).ToList();
-                Task<LoopResponse> portTask;
-                while (axSensors.Select(s => Math.Truncate(s.Data.Average(x => x.Value)))
-                    .All(x => x < AxRange.Min))
+                var isBalanced = false;
+                while (!isBalanced)
                 {
-                    await _smartPort.Go(menuOption: CommandType.MaxAx);
-                    portTask = _smartPort.Go(menuOption: CommandType.Collect);
-                    axSensors = ((List<Sensor>)portTask.Result.ReturnObject).Take(2)
-                        .Where(x => x.Type == SensorType.Accelerometer).ToList();
-                    PrintCollectResponse(axSensors);
-                }
+                    Task<LoopResponse> portTask;
 
-                while (axSensors.Select(s => Math.Truncate(s.Data.Average(x => x.Value)))
-                    .All(x => x > AxRange.Max))
-                {
-                    await _smartPort.Go(menuOption: CommandType.MinAx);
-                    portTask = _smartPort.Go(menuOption: CommandType.Collect);
-                    axSensors = ((List<Sensor>)portTask.Result.ReturnObject).Take(2)
-                        .Where(x => x.Type == SensorType.Accelerometer).ToList();
-                    PrintCollectResponse(axSensors);
-                }
+                    //while (axSensors.Select(s => Math.Truncate(s.Data.Average(x => x.Value)))
+                    //    .All(x => x < AxRange.Min))
+                    while (axSensors.Select(s =>
+                            Math.Truncate(s.Data.Select(x => BitConverter.ToUInt16(x.Bytes, 0)).Average(x => x)))
+                        .All(x => x < AxRange.Min))
+                    {
+                        await _smartPort.Go(menuOption: CommandType.MaxAx);
+                        portTask = _smartPort.Go(menuOption: CommandType.Collect);
+                        axSensors = ((List<Sensor>) portTask.Result.ReturnObject).Take(2)
+                            .Where(x => x.Type == SensorType.Accelerometer).ToList();
+                        PrintCollectResponse(axSensors);
+                    }
 
-                if (axSensors.Select(s => Math.Truncate(s.Data.Average(x => x.Value)))
-                        .All(x => x < AxRange.Max)
-                    && axSensors.Select(s => Math.Truncate(s.Data.Average(x => x.Value)))
-                        .All(x => x > AxRange.Min))
-                {
-                    //await _smartPort.Go(menuOption: CommandType.SaveSg);
+                    //while (axSensors.Select(s => Math.Truncate(s.Data.Average(x => x.Value)))
+                    //    .All(x => x > AxRange.Max))
+                    while (axSensors.Select(s =>
+                            Math.Truncate(s.Data.Select(x => BitConverter.ToUInt16(x.Bytes, 0)).Average(x => x)))
+                        .All(x => x > AxRange.Max))
+                    {
+                        await _smartPort.Go(menuOption: CommandType.MinAx);
+                        portTask = _smartPort.Go(menuOption: CommandType.Collect);
+                        axSensors = ((List<Sensor>) portTask.Result.ReturnObject).Take(2)
+                            .Where(x => x.Type == SensorType.Accelerometer).ToList();
+                        PrintCollectResponse(axSensors);
+                    }
+
+                    //if (axSensors.Select(s => Math.Truncate(s.Data.Average(x => x.Value)))
+                    //        .All(x => x < AxRange.Max)
+                    //    && axSensors.Select(s => Math.Truncate(s.Data.Average(x => x.Value)))
+                    //        .All(x => x > AxRange.Min))
+                    if (axSensors.Select(s =>
+                                Math.Truncate(s.Data.Select(x => BitConverter.ToUInt16(x.Bytes, 0)).Average(x => x)))
+                            .All(x => x <= AxRange.Max)
+                        && axSensors.Select(s =>
+                                Math.Truncate(s.Data.Select(x => BitConverter.ToUInt16(x.Bytes, 0)).Average(x => x)))
+                            .All(x => x >= AxRange.Min))
+                    {
+                        //await _smartPort.Go(menuOption: CommandType.SaveSg);
+                        isBalanced = true;
+                    }
                 }
             }
         }
@@ -142,33 +160,51 @@ namespace AfeCalibration
                 x.Type.ToDecimal(0) == (int) SensorType.StrainGauge))
             {
                 var strainSensors = sensors.Where(x => x.Type == SensorType.StrainGauge).ToList();
-                Task<LoopResponse> portTask;
-                while (strainSensors.Select(s => Math.Truncate(s.Data.Average(x => x.Value)))
-                    .All(x => x < StrainRange.Min))
+                var isBalanced = false;
+                while (!isBalanced)
                 {
-                    await _smartPort.Go(menuOption: CommandType.IncrementSg);
-                    portTask = _smartPort.Go(menuOption: CommandType.Collect);
-                    strainSensors = ((List<Sensor>) portTask.Result.ReturnObject).Take(2)
-                        .Where(x => x.Type == SensorType.StrainGauge).ToList();
-                    PrintCollectResponse(strainSensors);
-                }
 
-                while (strainSensors.Select(s => Math.Truncate(s.Data.Average(x => x.Value)))
-                    .All(x => x > StrainRange.Max))
-                {
-                    await _smartPort.Go(menuOption: CommandType.DecrementSg);
-                    portTask = _smartPort.Go(menuOption: CommandType.Collect);
-                    strainSensors = ((List<Sensor>) portTask.Result.ReturnObject).Take(2)
-                        .Where(x => x.Type == SensorType.StrainGauge).ToList();
-                    PrintCollectResponse(strainSensors);
-                }
+                    //while (strainSensors.Select(s => Math.Truncate(s.Data.Average(x => x.Value)))
+                    //    .All(x => x < StrainRange.Min))
+                    Task<LoopResponse> portTask;
+                    while (strainSensors.Select(s =>
+                            Math.Truncate(s.Data.Select(x => BitConverter.ToUInt16(x.Bytes, 0)).Average(b => b)))
+                        .All(x => x < StrainRange.Min))
+                    {
+                        await _smartPort.Go(menuOption: CommandType.IncrementSg);
+                        portTask = _smartPort.Go(menuOption: CommandType.Collect);
+                        strainSensors = ((List<Sensor>) portTask.Result.ReturnObject).Take(2)
+                            .Where(x => x.Type == SensorType.StrainGauge).ToList();
+                        PrintCollectResponse(strainSensors);
+                    }
 
-                if (strainSensors.Select(s => Math.Truncate(s.Data.Average(x => x.Value)))
-                        .All(x => x < StrainRange.Max)
-                    && strainSensors.Select(s => Math.Truncate(s.Data.Average(x => x.Value)))
-                        .All(x => x > StrainRange.Min))
-                {
-                    await _smartPort.Go(menuOption: CommandType.SaveSg);
+                    //while (strainSensors.Select(s => Math.Truncate(s.Data.Average(x => x.Value)))
+                    //    .All(x => x > StrainRange.Max))
+                    while (strainSensors.Select(s =>
+                            Math.Truncate(s.Data.Select(x => BitConverter.ToUInt16(x.Bytes, 0)).Average(x => x)))
+                        .All(x => x > StrainRange.Max))
+                    {
+                        await _smartPort.Go(menuOption: CommandType.DecrementSg);
+                        portTask = _smartPort.Go(menuOption: CommandType.Collect);
+                        strainSensors = ((List<Sensor>) portTask.Result.ReturnObject).Take(2)
+                            .Where(x => x.Type == SensorType.StrainGauge).ToList();
+                        PrintCollectResponse(strainSensors);
+                    }
+
+                    //if (strainSensors.Select(s => Math.Truncate(s.Data.Average(x => x.Value)))
+                    //        .All(x => x < StrainRange.Max)
+                    //    && strainSensors.Select(s => Math.Truncate(s.Data.Average(x => x.Value)))
+                    //        .All(x => x > StrainRange.Min))
+                    if (strainSensors.Select(s =>
+                                Math.Truncate(s.Data.Select(x => BitConverter.ToUInt16(x.Bytes, 0)).Average(x => x)))
+                            .All(x => x <= StrainRange.Max)
+                        && strainSensors.Select(s =>
+                                Math.Truncate(s.Data.Select(x => BitConverter.ToUInt16(x.Bytes, 0)).Average(x => x)))
+                            .All(x => x >= StrainRange.Min))
+                    {
+                        await _smartPort.Go(menuOption: CommandType.SaveSg);
+                        isBalanced = true;
+                    }
                 }
             }
         }
@@ -180,8 +216,10 @@ namespace AfeCalibration
             foreach (var sensor in sensors)
             {
                 SmartLog.WriteLine(
-                    $"{sensor.Afe} ({sensor.Data.Count} samples): {sensor.Type}:{Math.Truncate(sensor.Data.Average(x => x.Value))}");
+                    $"{sensor.Afe} ({sensor.Data.Count} samples): {sensor.Type}:{Math.Truncate(sensor.Data.Average(x => x.Value))}," +
+                    $" Quantized: {Math.Truncate(sensor.Data.Select(x => BitConverter.ToUInt16(x.Bytes, 0)).Average(x => x))}");
             }
+
             borderColor = ConsoleColor.White;
             Console.ForegroundColor = borderColor;
         }
@@ -192,27 +230,27 @@ namespace AfeCalibration
             if (!dataPortConfig.ActChannelsDataPacking.SequenceEqual(defaultDataPortConfig.ActChannelsDataPacking))
             {
                 isValid = false;
-                SmartLog.WriteLine(
+                SmartLog.WriteErrorLine(
                     $"Act Channel Data Pack {dataPortConfig.ActChannelsDataPacking.ToHex()} not matching with default {defaultDataPortConfig.ActChannelsDataPacking.ToHex()}");
             }
 
             if (!dataPortConfig.SampleInterval.SequenceEqual(defaultDataPortConfig.SampleInterval))
             {
                 isValid = false;
-                SmartLog.WriteLine(
+                SmartLog.WriteErrorLine(
                     $"Sample Interval {dataPortConfig.SampleInterval.ToHex()} not matching with default {defaultDataPortConfig.SampleInterval.ToHex()}");
             }
 
             if (!dataPortConfig.FirmwareVersion.SequenceEqual(defaultDataPortConfig.FirmwareVersion))
             {
                 isValid = false;
-                SmartLog.WriteLine(
+                SmartLog.WriteErrorLine(
                     $"Firmware Version {dataPortConfig.FirmwareVersion.ToHex()} not matching with default {defaultDataPortConfig.FirmwareVersion.ToHex()}");
             }
             if (!dataPortConfig.ModeFlag.SequenceEqual(defaultDataPortConfig.ModeFlag))
             {
                 isValid = false;
-                SmartLog.WriteLine(
+                SmartLog.WriteErrorLine(
                     $"Mode Flag {dataPortConfig.ModeFlag.ToHex()} not matching with default {defaultDataPortConfig.ModeFlag.ToHex()}");
             }
             if (!isValid)

@@ -69,7 +69,13 @@ namespace Smart.Log.Helper
             var bitArray = new BitArray(ba);
             return bitArray;
         }
-
+        public static byte[] ToByteArray(this string hex)
+        {
+            return Enumerable.Range(0, hex.Length)
+                .Where(x => x % 2 == 0)
+                .Select(x => Convert.ToByte(hex.Substring(x, 2), 16))
+                .ToArray();
+        }
         public static decimal ToDecimal(this byte[] src, int offset)
         {
             var decimalValue = Convert.ToInt64(src.ToHex(true), 16);

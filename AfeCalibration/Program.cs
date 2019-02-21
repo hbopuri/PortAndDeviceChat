@@ -61,7 +61,7 @@ namespace AfeCalibration
             var readDataPortConfig = _smartPort.ReadDataPortConfig();
             CompareDataPortConfig(readDataPortConfig, defaultDataPortConfig);
             var portTask = _smartPort.Go(menuOption: CommandType.Collect);
-            while (portTask.Result.Selection != CommandType.PowerOff && portTask.Result.Selection != CommandType.SaveSg)
+            while (portTask.Result.Selection != CommandType.Exit)
             {
                 switch (portTask.Result.Selection)
                 {
@@ -75,7 +75,7 @@ namespace AfeCalibration
                                 await AdjustAx(readDataPortConfig, sensors.Take(2).ToList());
                                 //portTask = _smartPort.Go(menuOption: _smartPort.Menu(_printMenu));
                                 //_printMenu = false;
-                        }
+                            }
 
                         break;
                     }
@@ -96,11 +96,11 @@ namespace AfeCalibration
                 _printMenu = false;
             }
 
-            SmartLog.WriteLine("Type exit to quite\n");
-            while (!Convert.ToString(Console.ReadLine()).Equals("exit", StringComparison.OrdinalIgnoreCase))
-            {
-                SmartLog.WriteLine("Unknown command\n");
-            }
+            //SmartLog.WriteLine("Type exit to quite\n");
+            //while (!Convert.ToString(Console.ReadLine()).Equals("exit", StringComparison.OrdinalIgnoreCase))
+            //{
+            //    SmartLog.WriteLine("Unknown command\n");
+            //}
 
             //_smartPort.PowerOff();
         }
@@ -112,6 +112,7 @@ namespace AfeCalibration
             {
                 var axSensors = sensors.Where(x => x.Type == SensorType.Accelerometer).ToList();
                 var isBalanced = false;
+                var saveRequire = false;
                 while (!isBalanced)
                 {
                     Task<LoopResponse> portTask;
@@ -121,7 +122,8 @@ namespace AfeCalibration
                             Math.Truncate(s.Data.Select(x => Convert.ToInt16(BitConverter.ToUInt16(x.Bytes, 0))).Average(x => x)))
                         .All(x => x < AxRange.Min))
                     {
-                        await _smartPort.Go(menuOption: CommandType.MaxAx);
+                        saveRequire = true;
+                        await _smartPort.Go(menuOption: CommandType.MinAx);
                         portTask = _smartPort.Go(menuOption: CommandType.Collect);
                         axSensors = ((List<Sensor>) portTask.Result.ReturnObject).Take(2)
                             .Where(x => x.Type == SensorType.Accelerometer).ToList();
@@ -134,7 +136,8 @@ namespace AfeCalibration
                             Math.Truncate(s.Data.Select(x => Convert.ToInt16(BitConverter.ToUInt16(x.Bytes, 0))).Average(x => x)))
                         .All(x => x > AxRange.Max))
                     {
-                        await _smartPort.Go(menuOption: CommandType.MinAx);
+                        saveRequire = true;
+                        await _smartPort.Go(menuOption: CommandType.MaxAx);
                         portTask = _smartPort.Go(menuOption: CommandType.Collect);
                         axSensors = ((List<Sensor>) portTask.Result.ReturnObject).Take(2)
                             .Where(x => x.Type == SensorType.Accelerometer).ToList();
@@ -150,9 +153,13 @@ namespace AfeCalibration
                             .All(x => x <= AxRange.Max)
                         && axSensors.Select(s =>
                                 Math.Truncate(s.Data.Select(x => Convert.ToInt16(BitConverter.ToUInt16(x.Bytes, 0))).Average(x => x)))
-                            .All(x => x >= AxRange.Min))
+                            .All(x => x >= AxRange.Min) && saveRequire)
                     {
-                        //await _smartPort.Go(menuOption: CommandType.SaveSg);
+                        await _smartPort.Go(menuOption: CommandType.SaveAx);
+                        isBalanced = true;
+                    }
+                    else if (!saveRequire)
+                    {
                         isBalanced = true;
                     }
                 }
@@ -165,6 +172,7 @@ namespace AfeCalibration
             {
                 var strainSensors = sensors.Where(x => x.Type == SensorType.StrainGauge).ToList();
                 var isBalanced = false;
+                var saveRequire = false;
                 while (!isBalanced)
                 {
 
@@ -175,6 +183,7 @@ namespace AfeCalibration
                             Math.Truncate(s.Data.Select(x => Convert.ToInt16(BitConverter.ToUInt16(x.Bytes, 0))).Average(b => b)))
                         .All(x => x < StrainRange.Min))
                     {
+                        saveRequire = true;
                         await _smartPort.Go(menuOption: CommandType.IncrementSg);
                         portTask = _smartPort.Go(menuOption: CommandType.Collect);
                         strainSensors = ((List<Sensor>) portTask.Result.ReturnObject).Take(2)
@@ -188,6 +197,7 @@ namespace AfeCalibration
                             Math.Truncate(s.Data.Select(x => Convert.ToInt16(BitConverter.ToUInt16(x.Bytes, 0))).Average(x => x)))
                         .All(x => x > StrainRange.Max))
                     {
+                        saveRequire = true;
                         await _smartPort.Go(menuOption: CommandType.DecrementSg);
                         portTask = _smartPort.Go(menuOption: CommandType.Collect);
                         strainSensors = ((List<Sensor>) portTask.Result.ReturnObject).Take(2)
@@ -204,9 +214,13 @@ namespace AfeCalibration
                             .All(x => x <= StrainRange.Max)
                         && strainSensors.Select(s =>
                                 Math.Truncate(s.Data.Select(x => Convert.ToInt16(BitConverter.ToUInt16(x.Bytes, 0))).Average(x => x)))
-                            .All(x => x >= StrainRange.Min))
+                            .All(x => x >= StrainRange.Min) && saveRequire)
                     {
                         await _smartPort.Go(menuOption: CommandType.SaveSg);
+                        isBalanced = true;
+                    }
+                    else if (!saveRequire)
+                    {
                         isBalanced = true;
                     }
                 }

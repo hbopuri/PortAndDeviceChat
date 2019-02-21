@@ -881,6 +881,18 @@ namespace Smart.Agent.Business
                     }
 
                     return await Task.FromResult(loopResponse);
+                case CommandType.SaveAx:
+                    try
+                    {
+                        await UsbToSpiConverter.IncrementOrDecrementAx(AxAdjust.Save);
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.Clear();
+                        SmartLog.WriteLine(ex.ToString());
+                    }
+
+                    return await Task.FromResult(loopResponse);
                 case CommandType.SaveSg:
                     try
                     {
@@ -898,6 +910,20 @@ namespace Smart.Agent.Business
                     try
                     {
                         PowerOff();
+                        UsbToSpiConverter.Close();
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.Clear();
+                        SmartLog.WriteLine(ex.ToString());
+                    }
+
+                    return await Task.FromResult(loopResponse);
+                case CommandType.PowerOn:
+                    try
+                    {
+                        PowerOn();
+                        await UsbToSpiConverter.Init();
                     }
                     catch (Exception ex)
                     {
@@ -911,6 +937,20 @@ namespace Smart.Agent.Business
                     {
                         var response = ReadDataPortConfig();
                         WriteDataPortConfig(_currentCommand.CommBytes[0], response, GetDefaultDataPortConfig());
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.Clear();
+                        SmartLog.WriteLine(ex.ToString());
+                    }
+
+                    return await Task.FromResult(loopResponse);
+
+                case CommandType.Exit:
+                    try
+                    {
+                        PowerOff();
+                        UsbToSpiConverter.Close();
                     }
                     catch (Exception ex)
                     {
@@ -946,6 +986,8 @@ namespace Smart.Agent.Business
                     SmartLog.WriteLine("I. Save AFE");
                     SmartLog.WriteLine("J. Power Off");
                     SmartLog.WriteLine("K. Force Write Date Port Config");
+                    SmartLog.WriteLine("L. Power On");
+                    SmartLog.WriteLine("M. Exit");
                     SmartLog.WriteLine("\nPlease select the option from above:");
                 }
 
@@ -961,6 +1003,8 @@ namespace Smart.Agent.Business
                 if (char.ToUpperInvariant(consoleKey.KeyChar) == 'I') return 10;
                 if (char.ToUpperInvariant(consoleKey.KeyChar) == 'J') return 11;
                 if (char.ToUpperInvariant(consoleKey.KeyChar) == 'K') return 12;
+                if (char.ToUpperInvariant(consoleKey.KeyChar) == 'L') return 14;
+                if (char.ToUpperInvariant(consoleKey.KeyChar) == 'M') return 15;
             }
         }
 
@@ -995,6 +1039,13 @@ namespace Smart.Agent.Business
         {
             var powerOffCommand = _commaQueue.CommandQueue.FirstOrDefault(x =>
                 x.CommandName.Equals("POWER OFF", StringComparison.OrdinalIgnoreCase));
+            if (powerOffCommand != null)
+                ExecuteCommand(powerOffCommand);
+        }
+        public void PowerOn()
+        {
+            var powerOffCommand = _commaQueue.CommandQueue.FirstOrDefault(x =>
+                x.CommandName.Equals("POWER ON", StringComparison.OrdinalIgnoreCase));
             if (powerOffCommand != null)
                 ExecuteCommand(powerOffCommand);
         }

@@ -5,6 +5,8 @@ namespace Smart.Agent.Model
     public class Options
     {
         //[Option('q', "Request", HelpText = "Print Request Command")]
+        [Option("ifb",  HelpText = "Enter IFB Board Id")]
+        public string BoardId { get; set; }
         [Option("req", Default = false, HelpText = "Print Request Command")]
         public bool PrintRequest { get; set; }
         //[Option('r', "Response", HelpText = "Print Response Payload")]

@@ -29,6 +29,9 @@ namespace AfeCalibration
                 .WithParsed(o =>
                 {
                     _options = o;
+                    SmartLog.WriteLine(!string.IsNullOrWhiteSpace(o.BoardId)
+                        ? $"Entered IFB Board Id (in Hex). Current Arguments: --ifb {o.BoardId.ToUpper()}"
+                        : $"No IFB Board Id passed. Current Arguments: --ifb");
                     SmartLog.WriteLine(o.PrintRequest
                         ? $"Print Request enabled. Current Arguments: --req {o.PrintRequest}"
                         : $"Print Request disabled. Current Arguments: --req {o.PrintRequest}");
@@ -68,8 +71,10 @@ namespace AfeCalibration
                         {
                             var sensors = ((List<Sensor>) portTask.Result.ReturnObject);
                             PrintCollectResponse(sensors);
-                            await AdjustStrain(readDataPortConfig, sensors.Take(2).ToList());
-                            await AdjustAx(readDataPortConfig, sensors.Take(2).ToList());
+                                await AdjustStrain(readDataPortConfig, sensors.Take(2).ToList());
+                                await AdjustAx(readDataPortConfig, sensors.Take(2).ToList());
+                                //portTask = _smartPort.Go(menuOption: _smartPort.Menu(_printMenu));
+                                //_printMenu = false;
                         }
 
                         break;
@@ -110,11 +115,10 @@ namespace AfeCalibration
                 while (!isBalanced)
                 {
                     Task<LoopResponse> portTask;
-
                     //while (axSensors.Select(s => Math.Truncate(s.Data.Average(x => x.Value)))
                     //    .All(x => x < AxRange.Min))
                     while (axSensors.Select(s =>
-                            Math.Truncate(s.Data.Select(x => BitConverter.ToUInt16(x.Bytes, 0)).Average(x => x)))
+                            Math.Truncate(s.Data.Select(x => Convert.ToInt16(BitConverter.ToUInt16(x.Bytes, 0))).Average(x => x)))
                         .All(x => x < AxRange.Min))
                     {
                         await _smartPort.Go(menuOption: CommandType.MaxAx);
@@ -127,7 +131,7 @@ namespace AfeCalibration
                     //while (axSensors.Select(s => Math.Truncate(s.Data.Average(x => x.Value)))
                     //    .All(x => x > AxRange.Max))
                     while (axSensors.Select(s =>
-                            Math.Truncate(s.Data.Select(x => BitConverter.ToUInt16(x.Bytes, 0)).Average(x => x)))
+                            Math.Truncate(s.Data.Select(x => Convert.ToInt16(BitConverter.ToUInt16(x.Bytes, 0))).Average(x => x)))
                         .All(x => x > AxRange.Max))
                     {
                         await _smartPort.Go(menuOption: CommandType.MinAx);
@@ -142,10 +146,10 @@ namespace AfeCalibration
                     //    && axSensors.Select(s => Math.Truncate(s.Data.Average(x => x.Value)))
                     //        .All(x => x > AxRange.Min))
                     if (axSensors.Select(s =>
-                                Math.Truncate(s.Data.Select(x => BitConverter.ToUInt16(x.Bytes, 0)).Average(x => x)))
+                                Math.Truncate(s.Data.Select(x => Convert.ToInt16(BitConverter.ToUInt16(x.Bytes, 0))).Average(x => x)))
                             .All(x => x <= AxRange.Max)
                         && axSensors.Select(s =>
-                                Math.Truncate(s.Data.Select(x => BitConverter.ToUInt16(x.Bytes, 0)).Average(x => x)))
+                                Math.Truncate(s.Data.Select(x => Convert.ToInt16(BitConverter.ToUInt16(x.Bytes, 0))).Average(x => x)))
                             .All(x => x >= AxRange.Min))
                     {
                         //await _smartPort.Go(menuOption: CommandType.SaveSg);
@@ -168,7 +172,7 @@ namespace AfeCalibration
                     //    .All(x => x < StrainRange.Min))
                     Task<LoopResponse> portTask;
                     while (strainSensors.Select(s =>
-                            Math.Truncate(s.Data.Select(x => BitConverter.ToUInt16(x.Bytes, 0)).Average(b => b)))
+                            Math.Truncate(s.Data.Select(x => Convert.ToInt16(BitConverter.ToUInt16(x.Bytes, 0))).Average(b => b)))
                         .All(x => x < StrainRange.Min))
                     {
                         await _smartPort.Go(menuOption: CommandType.IncrementSg);
@@ -181,7 +185,7 @@ namespace AfeCalibration
                     //while (strainSensors.Select(s => Math.Truncate(s.Data.Average(x => x.Value)))
                     //    .All(x => x > StrainRange.Max))
                     while (strainSensors.Select(s =>
-                            Math.Truncate(s.Data.Select(x => BitConverter.ToUInt16(x.Bytes, 0)).Average(x => x)))
+                            Math.Truncate(s.Data.Select(x => Convert.ToInt16(BitConverter.ToUInt16(x.Bytes, 0))).Average(x => x)))
                         .All(x => x > StrainRange.Max))
                     {
                         await _smartPort.Go(menuOption: CommandType.DecrementSg);
@@ -196,10 +200,10 @@ namespace AfeCalibration
                     //    && strainSensors.Select(s => Math.Truncate(s.Data.Average(x => x.Value)))
                     //        .All(x => x > StrainRange.Min))
                     if (strainSensors.Select(s =>
-                                Math.Truncate(s.Data.Select(x => BitConverter.ToUInt16(x.Bytes, 0)).Average(x => x)))
+                                Math.Truncate(s.Data.Select(x => Convert.ToInt16(BitConverter.ToUInt16(x.Bytes, 0))).Average(x => x)))
                             .All(x => x <= StrainRange.Max)
                         && strainSensors.Select(s =>
-                                Math.Truncate(s.Data.Select(x => BitConverter.ToUInt16(x.Bytes, 0)).Average(x => x)))
+                                Math.Truncate(s.Data.Select(x => Convert.ToInt16(BitConverter.ToUInt16(x.Bytes, 0))).Average(x => x)))
                             .All(x => x >= StrainRange.Min))
                     {
                         await _smartPort.Go(menuOption: CommandType.SaveSg);
@@ -270,6 +274,11 @@ namespace AfeCalibration
 
         private static void GetBoardId()
         {
+            if (!string.IsNullOrWhiteSpace(_options.BoardId) && _options.BoardId.HexToByteArray() != null)
+            {
+                _boardId = _options.BoardId.HexToByteArray()[0];
+                return;
+            }
             SmartLog.WriteLine("\nPlease Enter Interface Board Id (in Hex):");
             bool isValidBoardId = false;
             while (!isValidBoardId)

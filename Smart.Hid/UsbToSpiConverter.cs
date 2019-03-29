@@ -73,8 +73,8 @@ namespace Smart.Hid
                     break;
                 case SgAdjust.Save:
                     txData[0] = 0x20;
-                    SmartLog.WriteLine(
-                        $"txData:{txData.ToHex()}\nrxData:{rxData.ToHex()}\nbaudRate2:{baudRate2}\ntxFerSize2:{txFerSize2}\ncsMask4:{csMask4}\nidleCsVal2:{idleCsVal2}\nactiveCsVal2:{activeCsVal2}\ncsToDataDly2:{csToDataDly2}\ndataToCsDly2:{dataToCsDly2}\ndataToDataDly2:{dataToDataDly2}\nspiMd2:{spiMd2}");
+                    //SmartLog.WriteLine(
+                    //    $"txData:{txData.ToHex()}\nrxData:{rxData.ToHex()}\nbaudRate2:{baudRate2}\ntxFerSize2:{txFerSize2}\ncsMask4:{csMask4}\nidleCsVal2:{idleCsVal2}\nactiveCsVal2:{activeCsVal2}\ncsToDataDly2:{csToDataDly2}\ndataToCsDly2:{dataToCsDly2}\ndataToDataDly2:{dataToDataDly2}\nspiMd2:{spiMd2}");
                     break;
             }
 
@@ -146,9 +146,9 @@ namespace Smart.Hid
                 {
                     txData[0] = 0x20;
                     txData[1] = _value.ToString("X4").ToByteArray()[1];
-                    SmartLog.WriteErrorLine($"Value: {_value:X4}");
-                    SmartLog.WriteLine(
-                        $"txData:{txData.ToHex()}\nrxData:{rxData.ToHex()}\nbaudRate2:{baudRate2}\ntxFerSize2:{txFerSize2}\ncsMask4:{csMask4}\nidleCsVal2:{idleCsVal2}\nactiveCsVal2:{activeCsVal2}\ncsToDataDly2:{csToDataDly2}\ndataToCsDly2:{dataToCsDly2}\ndataToDataDly2:{dataToDataDly2}\nspiMd2:{spiMd2}");
+                    //SmartLog.WriteErrorLine($"Value: {_value:X4}");
+                    //SmartLog.WriteLine(
+                    //    $"txData:{txData.ToHex()}\nrxData:{rxData.ToHex()}\nbaudRate2:{baudRate2}\ntxFerSize2:{txFerSize2}\ncsMask4:{csMask4}\nidleCsVal2:{idleCsVal2}\nactiveCsVal2:{activeCsVal2}\ncsToDataDly2:{csToDataDly2}\ndataToCsDly2:{dataToCsDly2}\ndataToDataDly2:{dataToDataDly2}\nspiMd2:{spiMd2}");
                 }
                     break;
             }

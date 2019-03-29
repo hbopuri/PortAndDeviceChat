@@ -17,6 +17,7 @@
         public const int If = 0;
         public const int PowerOn = 14;
         public const int Exit = 15;
+        public const int JustCollect = 16;
         public const int Connect = 0;
     }
 }

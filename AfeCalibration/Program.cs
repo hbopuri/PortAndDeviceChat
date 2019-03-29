@@ -19,6 +19,7 @@ namespace AfeCalibration
         private static string _defaultComPort;
         private static Options _options;
         private static bool _printMenu = true;
+        private static bool _isTip;
 
         [STAThread]
         // ReSharper disable once UnusedParameter.Local
@@ -41,6 +42,9 @@ namespace AfeCalibration
                     SmartLog.WriteLine(o.PrintDataPortConfig
                         ? $"Print Data Port Config enabled. Current Arguments: --conf {o.PrintDataPortConfig}"
                         : $"Print Data Port Config disabled. Current Arguments: --conf {o.PrintDataPortConfig}");
+                    SmartLog.WriteLine(o.Model == 1  || o.Model == 2
+                        ? $"Entered Model. Current Arguments: --mdl {o.Model + (o.Model== 1 ? ":Ax-Sg": ":Sg-Sg")}"
+                        : $"No Model entered. Current Arguments: --mdl");
                 });
 
             if (args != null && args.Any() && args[0].Equals("--help", StringComparison.InvariantCultureIgnoreCase))
@@ -59,23 +63,41 @@ namespace AfeCalibration
             if (!_smartPort.Start())
                 return;
             var readDataPortConfig = _smartPort.ReadDataPortConfig();
-            CompareDataPortConfig(readDataPortConfig, defaultDataPortConfig);
+            //CompareDataPortConfig(readDataPortConfig, defaultDataPortConfig);
             var portTask = _smartPort.Go(menuOption: CommandType.Collect);
             while (portTask.Result.Selection != CommandType.Exit)
             {
                 switch (portTask.Result.Selection)
                 {
+                    case CommandType.JustCollect:
+                    {
+                        if (portTask.Result.ReturnObject != null)
+                        {
+                            var sensors = ((List<Sensor>)portTask.Result.ReturnObject);
+                            PrintCollectResponse(sensors);
+                        }
+                        break;
+                    }
                     case CommandType.Collect:
                     {
                         if (portTask.Result.ReturnObject != null)
                         {
                             var sensors = ((List<Sensor>) portTask.Result.ReturnObject);
-                            PrintCollectResponse(sensors);
-                                await AdjustStrain(readDataPortConfig, sensors.Take(2).ToList());
-                                await AdjustAx(readDataPortConfig, sensors.Take(2).ToList());
-                                //portTask = _smartPort.Go(menuOption: _smartPort.Menu(_printMenu));
-                                //_printMenu = false;
+                            if (sensors[1].Data != null && sensors[1].Data.Any())
+                            {
+                                var channelThreeQuantized =
+                                    //Math.Truncate(sensors[1].Data.Select(x => BitConverter.ToUInt16(x.Bytes, 0))
+                                    //    .Average(x => x));
+                                Math.Truncate(sensors[1].Data.Average(x => x.Value));
+                                _isTip = channelThreeQuantized < 300 || channelThreeQuantized > 3800;
                             }
+
+                            PrintCollectResponse(sensors);
+                            //if (_options.Model.Equals(2))
+                            //    sensors = sensors.Skip(2).Take(2).ToList();
+                            await AdjustStrain(readDataPortConfig, sensors);
+                            await AdjustAx(readDataPortConfig, sensors);
+                        }
 
                         break;
                     }
@@ -110,7 +132,8 @@ namespace AfeCalibration
             if (readDataPortConfig.SensorChannels.Any(x =>
                 x.Type.ToDecimal(0) == (int)SensorType.Accelerometer))
             {
-                var axSensors = sensors.Where(x => x.Type == SensorType.Accelerometer).ToList();
+                var axSensors = sensors.Where(x => x.Afe == (_isTip ? Afe.Tip : Afe.Top)
+                                                   && x.Type == SensorType.Accelerometer).ToList();
                 var isBalanced = false;
                 var saveRequire = false;
                 while (!isBalanced)
@@ -119,14 +142,28 @@ namespace AfeCalibration
                     //while (axSensors.Select(s => Math.Truncate(s.Data.Average(x => x.Value)))
                     //    .All(x => x < AxRange.Min))
                     while (axSensors.Select(s =>
-                            Math.Truncate(s.Data.Select(x => Convert.ToInt16(BitConverter.ToUInt16(x.Bytes, 0))).Average(x => x)))
+                            Math.Truncate(s.Data.Select(x => Convert.ToInt16(BitConverter.ToUInt16(x.Bytes, 0)))
+                                .Average(x => x)))
                         .All(x => x < AxRange.Min))
                     {
                         saveRequire = true;
                         await _smartPort.Go(menuOption: CommandType.MinAx);
                         portTask = _smartPort.Go(menuOption: CommandType.Collect);
-                        axSensors = ((List<Sensor>) portTask.Result.ReturnObject).Take(2)
-                            .Where(x => x.Type == SensorType.Accelerometer).ToList();
+                        switch (_options.Model)
+                        {
+                            case 2:
+                                axSensors = ((List<Sensor>) portTask.Result.ReturnObject).Skip(2).Take(2)
+                                    .Where(x => x.Type == SensorType.Accelerometer).ToList();
+                                break;
+                            case 1 when _isTip:
+                                axSensors = ((List<Sensor>)portTask.Result.ReturnObject).Skip(2).Take(2)
+                                    .Where(x => x.Type == SensorType.Accelerometer).ToList();
+                                break;
+                            default:
+                                axSensors = ((List<Sensor>)portTask.Result.ReturnObject).Skip(0).Take(2)
+                                    .Where(x => x.Type == SensorType.Accelerometer).ToList();
+                                break;
+                        }
                         PrintCollectResponse(axSensors);
                     }
 
@@ -139,8 +176,21 @@ namespace AfeCalibration
                         saveRequire = true;
                         await _smartPort.Go(menuOption: CommandType.MaxAx);
                         portTask = _smartPort.Go(menuOption: CommandType.Collect);
-                        axSensors = ((List<Sensor>) portTask.Result.ReturnObject).Take(2)
-                            .Where(x => x.Type == SensorType.Accelerometer).ToList();
+                        switch (_options.Model)
+                        {
+                            case 2:
+                                axSensors = ((List<Sensor>)portTask.Result.ReturnObject).Skip(2).Take(2)
+                                    .Where(x => x.Type == SensorType.Accelerometer).ToList();
+                                break;
+                            case 1 when _isTip:
+                                axSensors = ((List<Sensor>)portTask.Result.ReturnObject).Skip(2).Take(2)
+                                    .Where(x => x.Type == SensorType.Accelerometer).ToList();
+                                break;
+                            default:
+                                axSensors = ((List<Sensor>)portTask.Result.ReturnObject).Skip(0).Take(2)
+                                    .Where(x => x.Type == SensorType.Accelerometer).ToList();
+                                break;
+                        }
                         PrintCollectResponse(axSensors);
                     }
 
@@ -170,7 +220,9 @@ namespace AfeCalibration
             if (readDataPortConfig.SensorChannels.Any(x =>
                 x.Type.ToDecimal(0) == (int) SensorType.StrainGauge))
             {
-                var strainSensors = sensors.Where(x => x.Type == SensorType.StrainGauge).ToList();
+                var strainSensors = sensors.Where(x =>
+                    x.Afe == (_isTip? Afe.Tip: Afe.Top)
+                    && x.Type == SensorType.StrainGauge).ToList();
                 var isBalanced = false;
                 var saveRequire = false;
                 while (!isBalanced)
@@ -180,28 +232,56 @@ namespace AfeCalibration
                     //    .All(x => x < StrainRange.Min))
                     Task<LoopResponse> portTask;
                     while (strainSensors.Select(s =>
-                            Math.Truncate(s.Data.Select(x => Convert.ToInt16(BitConverter.ToUInt16(x.Bytes, 0))).Average(b => b)))
+                            Math.Truncate(s.Data.Select(x => Convert.ToInt16(BitConverter.ToUInt16(x.Bytes, 0)))
+                                .Average(b => b)))
                         .All(x => x < StrainRange.Min))
                     {
                         saveRequire = true;
                         await _smartPort.Go(menuOption: CommandType.IncrementSg);
                         portTask = _smartPort.Go(menuOption: CommandType.Collect);
-                        strainSensors = ((List<Sensor>) portTask.Result.ReturnObject).Take(2)
-                            .Where(x => x.Type == SensorType.StrainGauge).ToList();
+                        switch (_options.Model)
+                        {
+                            case 2:
+                                strainSensors = ((List<Sensor>)portTask.Result.ReturnObject).Skip(2).Take(2)
+                                    .Where(x => x.Type == SensorType.StrainGauge).ToList();
+                                break;
+                            case 1 when _isTip:
+                                strainSensors = ((List<Sensor>)portTask.Result.ReturnObject).Skip(2).Take(2)
+                                    .Where(x => x.Type == SensorType.StrainGauge).ToList();
+                                break;
+                            default:
+                                strainSensors = ((List<Sensor>)portTask.Result.ReturnObject).Skip(0).Take(2)
+                                    .Where(x => x.Type == SensorType.StrainGauge).ToList();
+                                break;
+                        }
                         PrintCollectResponse(strainSensors);
                     }
 
                     //while (strainSensors.Select(s => Math.Truncate(s.Data.Average(x => x.Value)))
                     //    .All(x => x > StrainRange.Max))
                     while (strainSensors.Select(s =>
-                            Math.Truncate(s.Data.Select(x => Convert.ToInt16(BitConverter.ToUInt16(x.Bytes, 0))).Average(x => x)))
+                            Math.Truncate(s.Data.Select(x => Convert.ToInt16(BitConverter.ToUInt16(x.Bytes, 0)))
+                                .Average(x => x)))
                         .All(x => x > StrainRange.Max))
                     {
                         saveRequire = true;
                         await _smartPort.Go(menuOption: CommandType.DecrementSg);
                         portTask = _smartPort.Go(menuOption: CommandType.Collect);
-                        strainSensors = ((List<Sensor>) portTask.Result.ReturnObject).Take(2)
-                            .Where(x => x.Type == SensorType.StrainGauge).ToList();
+                        switch (_options.Model)
+                        {
+                            case 2:
+                                strainSensors = ((List<Sensor>) portTask.Result.ReturnObject).Skip(2).Take(2)
+                                    .Where(x => x.Type == SensorType.StrainGauge).ToList();
+                                break;
+                            case 1 when _isTip:
+                                strainSensors = ((List<Sensor>)portTask.Result.ReturnObject).Skip(2).Take(2)
+                                    .Where(x => x.Type == SensorType.StrainGauge).ToList();
+                                break;
+                            default:
+                                strainSensors = ((List<Sensor>)portTask.Result.ReturnObject).Skip(0).Take(2)
+                                    .Where(x => x.Type == SensorType.StrainGauge).ToList();
+                                break;
+                        }
                         PrintCollectResponse(strainSensors);
                     }
 

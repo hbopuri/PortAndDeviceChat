@@ -294,68 +294,72 @@ namespace Smart.Agent.Business
             var channelMode = Convert.ToInt32(_dataPortConfig.ActChannelsDataPacking.ToHex(true));
             if (isCompressed)
             {
+                //Afe topOrTip = _dataPortConfig.SensorChannels[3].Active.ToHex() == "01" ? Afe.Tip : Afe.Top;
                 while (position < 262)
                 {
                     var currentThree = responseBuffer.Skip(position).Take(3).ToArray();
                     MakeTwoHalves(currentThree, out var firstHalfBytes, out var secondHalfBytes);
-
-                    if (_sensors[0].Type == SensorType.Accelerometer)
+                    //HaBo: Currently Firmware is working always with 4 Channel, we will not get mode as 2 channel so we take 4 channel and throw away unconnected top or tip channels
+                    //if (channelMode == (int) ChannelMode.TwoChannel)
                     {
-                        if (_sensors.Any(x => x.Afe == Afe.Top && x.Type == SensorType.Accelerometer))
+
+                        if (_sensors[0].Type == SensorType.Accelerometer)
                         {
-                           
+                            if (_sensors.Any(x => x.Afe == Afe.Top && x.Type == SensorType.Accelerometer))
+                            {
+
                                 _sensors.First(x => x.Afe == Afe.Top && x.Type == SensorType.Accelerometer).Data
                                     .Add(
                                         new SensorData
                                         {
                                             Bytes = firstHalfBytes
                                         });
+                            }
                         }
-                    }
-                    else if (_sensors[0].Type == SensorType.StrainGauge)
-                    {
-                        if (_sensors.Any(x => x.Afe == Afe.Top && x.Type == SensorType.StrainGauge))
+                        else if (_sensors[0].Type == SensorType.StrainGauge)
                         {
-                            _sensors.First(x => x.Afe == Afe.Top && x.Type == SensorType.StrainGauge).Data
-                                .Add(
-                                    new SensorData
-                                    {
-                                        Bytes = firstHalfBytes
-                                    });
+                            if (_sensors.Any(x => x.Afe == Afe.Top && x.Type == SensorType.StrainGauge))
+                            {
+                                _sensors.First(x => x.Afe == Afe.Top && x.Type == SensorType.StrainGauge).Data
+                                    .Add(
+                                        new SensorData
+                                        {
+                                            Bytes = firstHalfBytes
+                                        });
+                            }
                         }
-                    }
 
-                    if (_sensors[1].Type == SensorType.Accelerometer)
-                    {
-                        if (_sensors.Any(x => x.Afe == Afe.Top && x.Type == SensorType.Accelerometer))
+                        if (_sensors[1].Type == SensorType.Accelerometer)
                         {
-                            _sensors.First(x => x.Afe == Afe.Top && x.Type == SensorType.Accelerometer).Data
-                                .Add(
-                                    new SensorData
-                                    {
-                                        Bytes = secondHalfBytes
-                                    });
+                            if (_sensors.Any(x => x.Afe == Afe.Top && x.Type == SensorType.Accelerometer))
+                            {
+                                _sensors.First(x => x.Afe == Afe.Top && x.Type == SensorType.Accelerometer).Data
+                                    .Add(
+                                        new SensorData
+                                        {
+                                            Bytes = secondHalfBytes
+                                        });
+                            }
                         }
-                    }
-                    else if (_sensors[1].Type == SensorType.StrainGauge)
-                    {
-                        if (_sensors.Any(x => x.Afe == Afe.Top && x.Type == SensorType.StrainGauge))
+                        else if (_sensors[1].Type == SensorType.StrainGauge)
                         {
-                            _sensors.First(x => x.Afe == Afe.Top && x.Type == SensorType.StrainGauge).Data
-                                .Add(
-                                    new SensorData
-                                    {
-                                        Bytes = secondHalfBytes
-                                    });
+                            if (_sensors.Any(x => x.Afe == Afe.Top && x.Type == SensorType.StrainGauge))
+                            {
+                                _sensors.First(x => x.Afe == Afe.Top && x.Type == SensorType.StrainGauge).Data
+                                    .Add(
+                                        new SensorData
+                                        {
+                                            Bytes = secondHalfBytes
+                                        });
+                            }
                         }
+
+                        position = position + 3;
                     }
 
-
-
-                    position = position + 3;
                     if (channelMode == (int) ChannelMode.FourChannel || channelMode == (int) ChannelMode.SixChannel)
                     {
-                        currentThree = responseBuffer.Skip(position + 3).Take(3).ToArray();
+                        currentThree = responseBuffer.Skip(position).Take(3).ToArray();
                         MakeTwoHalves(currentThree, out firstHalfBytes, out secondHalfBytes);
                         if (_sensors[2].Type == SensorType.Accelerometer)
                         {
@@ -412,7 +416,7 @@ namespace Smart.Agent.Business
 
                     if (channelMode == (int) ChannelMode.SixChannel)
                     {
-                        currentThree = responseBuffer.Skip(position + 3).Take(3).ToArray();
+                        currentThree = responseBuffer.Skip(position).Take(3).ToArray();
                         MakeTwoHalves(currentThree, out firstHalfBytes, out secondHalfBytes);
                         if (_sensors[4].Type == SensorType.Accelerometer)
                         {
@@ -789,6 +793,19 @@ namespace Smart.Agent.Business
                     }
 
                     return await Task.FromResult(loopResponse);
+                case CommandType.JustCollect:
+                    try
+                    {
+                        _sensors = new List<Sensor>();
+                        loopResponse.ReturnObject = Collect();
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.Clear();
+                        SmartLog.WriteLine(ex.ToString());
+                    }
+
+                    return await Task.FromResult(loopResponse);
                 case CommandType.ReadDataPort:
                     try
                     {
@@ -988,11 +1005,13 @@ namespace Smart.Agent.Business
                     SmartLog.WriteLine("K. Force Write Date Port Config");
                     SmartLog.WriteLine("L. Power On");
                     SmartLog.WriteLine("M. Exit");
+                    SmartLog.WriteLine("N. COLLECT & Balance");
                     SmartLog.WriteLine("\nPlease select the option from above:");
                 }
 
                 var consoleKey = Console.ReadKey();
-                if (char.ToUpperInvariant(consoleKey.KeyChar) == 'A') return 1;
+                if (char.ToUpperInvariant(consoleKey.KeyChar) == 'N') return 1;
+                if (char.ToUpperInvariant(consoleKey.KeyChar) == 'A') return 16;
                 if (char.ToUpperInvariant(consoleKey.KeyChar) == 'B') return 2;
                 if (char.ToUpperInvariant(consoleKey.KeyChar) == 'C') return 4;
                 if (char.ToUpperInvariant(consoleKey.KeyChar) == 'D') return 5;
@@ -1077,8 +1096,9 @@ namespace Smart.Agent.Business
                 ActChannelsDataPacking = new byte[] {0x41},
                 //ActChannelsDataPacking = new byte[] { 0x21 },
                 SampleInterval = new byte[] {0x00, 0x04},
-                ModeFlag = new byte[] {0x41} // Turn On Mode Flag
-                //ModeFlag = new byte[] { 0x42 } // Turn Off Mode Flag
+                ModeFlag = new byte[] { 0x40 }
+                //ModeFlag = new byte[] {0x41} // Turn On Mode Flag in MEMS
+                //ModeFlag = new byte[] { 0x42 } // Turn Off Mode Flag MEMS
             };
         }
 

@@ -25,6 +25,10 @@ namespace AfeCalibration
         // ReSharper disable once UnusedParameter.Local
         static async Task Main(string[] args)
         {
+            await Run(args);
+        }
+        public static async Task Run(string[] args)
+        {
             Console.Clear();
             Parser.Default.ParseArguments<Options>(args)
                 .WithParsed(o =>
@@ -42,9 +46,12 @@ namespace AfeCalibration
                     SmartLog.WriteLine(o.PrintDataPortConfig
                         ? $"Print Data Port Config enabled. Current Arguments: --conf {o.PrintDataPortConfig}"
                         : $"Print Data Port Config disabled. Current Arguments: --conf {o.PrintDataPortConfig}");
-                    SmartLog.WriteLine(o.Model == 1  || o.Model == 2
-                        ? $"Entered Model. Current Arguments: --mdl {o.Model + (o.Model== 1 ? ":Ax-Sg": ":Sg-Sg")}"
+                    SmartLog.WriteLine(o.Model == 1 || o.Model == 2
+                        ? $"Entered Model. Current Arguments: --mdl {o.Model + (o.Model == 1 ? ":Ax-Sg" : ":Sg-Sg")}"
                         : $"No Model entered. Current Arguments: --mdl");
+                    SmartLog.WriteLine(!string.IsNullOrWhiteSpace(o.Command)
+                       ? $"Entered Command. Current Arguments: --cmd {o.Command.ToUpper()}"
+                       : $"No Command passed. Current Arguments: --cmd");
                 });
 
             if (args != null && args.Any() && args[0].Equals("--help", StringComparison.InvariantCultureIgnoreCase))
@@ -62,60 +69,75 @@ namespace AfeCalibration
             await _smartPort.Init(_boardId, _defaultComPort, _options);
             if (!_smartPort.Start())
                 return;
-            var readDataPortConfig = _smartPort.ReadDataPortConfig();
-            //CompareDataPortConfig(readDataPortConfig, defaultDataPortConfig);
-            var portTask = _smartPort.Go(menuOption: CommandType.Collect);
-            while (portTask.Result.Selection != CommandType.Exit)
+            try
             {
-                switch (portTask.Result.Selection)
+                if (!string.IsNullOrWhiteSpace(_options.Command))
                 {
-                    case CommandType.JustCollect:
-                    {
-                        if (portTask.Result.ReturnObject != null)
-                        {
-                            var sensors = ((List<Sensor>)portTask.Result.ReturnObject);
-                            PrintCollectResponse(sensors);
-                        }
-                        break;
-                    }
-                    case CommandType.Collect:
-                    {
-                        if (portTask.Result.ReturnObject != null)
-                        {
-                            var sensors = ((List<Sensor>) portTask.Result.ReturnObject);
-                            if (sensors[1].Data != null && sensors[1].Data.Any())
-                            {
-                                var channelThreeQuantized =
-                                    //Math.Truncate(sensors[1].Data.Select(x => BitConverter.ToUInt16(x.Bytes, 0))
-                                    //    .Average(x => x));
-                                Math.Truncate(sensors[1].Data.Average(x => x.Value));
-                                _isTip = channelThreeQuantized < 300 || channelThreeQuantized > 3800;
-                            }
-
-                            PrintCollectResponse(sensors);
-                            //if (_options.Model.Equals(2))
-                            //    sensors = sensors.Skip(2).Take(2).ToList();
-                            await AdjustStrain(readDataPortConfig, sensors);
-                            await AdjustAx(readDataPortConfig, sensors);
-                        }
-
-                        break;
-                    }
-                    case CommandType.ReadDataPort:
-                    {
-                        if (portTask.Result.ReturnObject != null)
-                        {
-                            var dataPortConfig = ((DataPortConfig) portTask.Result.ReturnObject);
-                            CompareDataPortConfig(dataPortConfig, defaultDataPortConfig);
-                        }
-
-                        break;
-                    }
+                    var command = (int)typeof(CommandType).GetField(_options.Command).GetValue(null);
+                    _ = _smartPort.Go(menuOption: command);
+                    return;
                 }
+                var readDataPortConfig = _smartPort.ReadDataPortConfig();
+                //CompareDataPortConfig(readDataPortConfig, defaultDataPortConfig);
+                var portTask = _smartPort.Go(menuOption: CommandType.Collect);
+                while (portTask.Result.Selection != CommandType.Exit)
+                {
+                    switch (portTask.Result.Selection)
+                    {
+                        case CommandType.JustCollect:
+                            {
+                                if (portTask.Result.ReturnObject != null)
+                                {
+                                    var sensors = ((List<Sensor>)portTask.Result.ReturnObject);
+                                    PrintCollectResponse(sensors);
+                                }
+                                break;
+                            }
+                        case CommandType.Collect:
+                            {
+                                if (portTask.Result.ReturnObject != null)
+                                {
+                                    var sensors = ((List<Sensor>)portTask.Result.ReturnObject);
+                                    if (sensors[1].Data != null && sensors[1].Data.Any())
+                                    {
+                                        var channelThreeQuantized =
+                                        //Math.Truncate(sensors[1].Data.Select(x => BitConverter.ToUInt16(x.Bytes, 0))
+                                        //    .Average(x => x));
+                                        Math.Truncate(sensors[1].Data.Average(x => x.Value));
+                                        _isTip = channelThreeQuantized < 300 || channelThreeQuantized > 3800;
+                                    }
 
-                //portTask = _smartPort.Go(menuOption: _smartPort.Menu());
-                portTask = _smartPort.Go(menuOption: _smartPort.Menu(_printMenu));
-                _printMenu = false;
+                                    PrintCollectResponse(sensors);
+                                    //if (_options.Model.Equals(2))
+                                    //    sensors = sensors.Skip(2).Take(2).ToList();
+                                    await AdjustStrain(readDataPortConfig, sensors);
+                                    await AdjustAx(readDataPortConfig, sensors);
+                                }
+
+                                break;
+                            }
+                        case CommandType.ReadDataPort:
+                            {
+                                if (portTask.Result.ReturnObject != null)
+                                {
+                                    var dataPortConfig = ((DataPortConfig)portTask.Result.ReturnObject);
+                                    CompareDataPortConfig(dataPortConfig, defaultDataPortConfig);
+                                }
+
+                                break;
+                            }
+                    }
+
+                    //portTask = _smartPort.Go(menuOption: _smartPort.Menu());
+                    portTask = _smartPort.Go(menuOption: _smartPort.Menu(_printMenu));
+                    _printMenu = false;
+                }
+            }
+            catch (Exception exception)
+            {
+                SmartLog.WriteErrorLine(exception.Message);
+
+                _ = _smartPort.Go(menuOption: CommandType.PowerOff);
             }
 
             //SmartLog.WriteLine("Type exit to quite\n");
@@ -126,7 +148,6 @@ namespace AfeCalibration
 
             //_smartPort.PowerOff();
         }
-
         private static async Task AdjustAx(DataPortConfig readDataPortConfig, List<Sensor> sensors)
         {
             if (readDataPortConfig.SensorChannels.Any(x =>
@@ -339,12 +360,12 @@ namespace AfeCalibration
                     $"Sample Interval {dataPortConfig.SampleInterval.ToHex()} not matching with default {defaultDataPortConfig.SampleInterval.ToHex()}");
             }
 
-            if (!dataPortConfig.FirmwareVersion.SequenceEqual(defaultDataPortConfig.FirmwareVersion))
-            {
-                isValid = false;
-                SmartLog.WriteErrorLine(
-                    $"Firmware Version {dataPortConfig.FirmwareVersion.ToHex()} not matching with default {defaultDataPortConfig.FirmwareVersion.ToHex()}");
-            }
+            //if (!dataPortConfig.FirmwareVersion.SequenceEqual(defaultDataPortConfig.FirmwareVersion))
+            //{
+            //    isValid = false;
+            //    SmartLog.WriteErrorLine(
+            //        $"Firmware Version {dataPortConfig.FirmwareVersion.ToHex()} not matching with default {defaultDataPortConfig.FirmwareVersion.ToHex()}");
+            //}
             if (!dataPortConfig.ModeFlag.SequenceEqual(defaultDataPortConfig.ModeFlag))
             {
                 isValid = false;

@@ -46,8 +46,14 @@ namespace Smart.Agent.Business
             //    Task.Run(() => SmartLog.WriteLine(_responseBuffer.ToHex()));
             //}
 
+
+            //_ = Task.Run(() => SmartLog.WriteLine(_responseBuffer.ToHex()));
+
             if (_responseBuffer.Length != _currentCommand.ExpectedPacketSize)
+            {
+                SmartLog.WriteLine($"\t*** Warning *** Received {_responseBuffer.Length } of {_currentCommand.ExpectedPacketSize} for {_currentCommand.CommandName}");
                 return;
+            }
             if (_currentCommand.CommandType == CommandType.ReadDataPort)
             {
                 var readResponse = _responseBuffer;
@@ -125,8 +131,7 @@ namespace Smart.Agent.Business
                         $"\tResponse for {_currentCommand.CommandName} (CheckSum {new[] { checksum }.ToHex()} Length:{_responseBuffer.Length}): {hexString}");
                 }
             }
-
-            SmartLog.WriteLine($"\tResponse Buffer Length: {_responseBuffer.Length}");
+            SmartLog.WriteLine($"\tReceived {_responseBuffer.Length } of {_currentCommand.ExpectedPacketSize} for {_currentCommand.CommandName}");
         }
 
         private void ProcessReadConfig(byte[] responseBuffer)
@@ -716,11 +721,19 @@ namespace Smart.Agent.Business
                 if (!_port.IsOpen)
                     _port.Open();
                 SmartLog.WriteLine($"Opened: {_port.PortName}");
-                foreach (var queue in _commaQueue.CommandQueue.Where(x => x.SequenceId > 0).OrderBy(x => x.SequenceId))
+                if (string.IsNullOrWhiteSpace(_options.Command))
                 {
-                    ExecuteCommand(queue);
+                    var powerOffCommand = _commaQueue.CommandQueue.FirstOrDefault(x =>
+                x.CommandName.Equals("POWER OFF", StringComparison.OrdinalIgnoreCase));
+                    if (powerOffCommand != null)
+                    {
+                        ExecuteCommand(powerOffCommand);
+                    }
+                    foreach (var queue in _commaQueue.CommandQueue.Where(x => x.SequenceId > 0).OrderBy(x => x.SequenceId))
+                    {
+                        ExecuteCommand(queue);
+                    }
                 }
-
                 return true;
             }
             catch (Exception e)
@@ -1092,9 +1105,9 @@ namespace Smart.Agent.Business
         {
             return new DataPortConfig
             {
-                FirmwareVersion = new byte[] {0x02, 0xBC},
-                ActChannelsDataPacking = new byte[] {0x41},
-                //ActChannelsDataPacking = new byte[] { 0x21 },
+                //FirmwareVersion = new byte[] {0x02, 0xBC},
+                //ActChannelsDataPacking = new byte[] {0x41},
+                ActChannelsDataPacking = new byte[] { 0x21 },
                 SampleInterval = new byte[] {0x00, 0x04},
                 ModeFlag = new byte[] { 0x40 }
                 //ModeFlag = new byte[] {0x41} // Turn On Mode Flag in MEMS
@@ -1105,16 +1118,22 @@ namespace Smart.Agent.Business
         public void WriteDataPortConfig(byte boardId, DataPortConfig received, DataPortConfig defaultSettings)
         {
             var complete = received.CompleteResponseBuffer;
+            
 
             complete[0] = boardId;
-            complete[1] = 0xC4;
+            //complete[1] = 0xC4; // This has to be calculated length
             complete[2] = 0x09;
+            var index4 = complete[4];
+            var index5 = complete[5];
+            complete[4] = index5;
+            complete[5] = index4;
 
-            complete[6] = 0xBB;
+            complete[6] = 0xBC; // 0xBB RH;
             complete[7] = 0x00;
             complete[8] = 0x00;
             complete[9] = 0x11;
 
+            complete[10] = 0xBC; // RH
 
             //complete[12] = defaultSettings.FirmwareVersion[1];
             //complete[13] = defaultSettings.FirmwareVersion[0];
@@ -1127,18 +1146,30 @@ namespace Smart.Agent.Business
             //complete[14] = 0x02;
             //complete[15] = 0x00;
 
-            complete[17] = defaultSettings.ModeFlag[0];
+            complete[17] = defaultSettings.ModeFlag[0]; // 187 for serial, anythign else is BT
 
             var currentUtcTime = DateTime.UtcNow.ToFourBytes();
             complete[20] = currentUtcTime[3];
             complete[21] = currentUtcTime[2];
             complete[22] = currentUtcTime[1];
             complete[23] = currentUtcTime[0];
-
+            //complete[194] = ((int)complete[194] + 30).ToString("X").ToByteArray()[0];
             //SmartLog.WriteErrorLine($"currentUtcTime: {currentUtcTime.ToDecimal(0)}");
 
             complete[27] = defaultSettings.ActChannelsDataPacking[0];
             //complete[27] = 0x21;
+
+            complete[1] = (complete.Length).ToString("X").ToByteArray()[0];
+
+            var firstCheckSum = received.CompleteResponseBuffer.Skip(12).Take(received.CompleteResponseBuffer.Length - 3).ToArray().ToHex().ToByteArray();
+            complete[complete.Length - 3] = firstCheckSum[0];
+            complete[complete.Length - 2] = firstCheckSum[1];
+
+            Array.Resize<byte>(ref complete, complete.Length + 1);
+
+            complete[complete.Length - 1] = complete.Skip(2).Take(complete.Length - 1).ToArray().CheckSum();
+
+            Array.Resize<byte>(ref complete, complete.Length + 1);
 
             complete[complete.Length - 1] = complete.Take(complete.Length - 1).ToArray().CheckSum();
 

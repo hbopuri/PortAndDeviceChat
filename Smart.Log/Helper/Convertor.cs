@@ -27,6 +27,11 @@ namespace Smart.Log.Helper
             long longSum = data.Sum(x => (long)x);
             return unchecked((byte)longSum);
         }
+        public static byte[] CheckSumArray(this byte[] data)
+        {
+            long longSum = data.Sum(x => (long)x);
+            return BitConverter.GetBytes(longSum);
+        }
 
         public static string ToHex(this byte[] ba, bool stripHyphens = false)
         {

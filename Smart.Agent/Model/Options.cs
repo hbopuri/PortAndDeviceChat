@@ -16,5 +16,8 @@ namespace Smart.Agent.Model
         public bool PrintResponse { get; set; }
         [Option("conf", Default = false, HelpText = "Print DataPort Config Payload")]
         public bool PrintDataPortConfig { get; set; }
+
+        [Option("cmd", HelpText = "Enter Single command")]
+        public string Command { get; set; }
     }
 }

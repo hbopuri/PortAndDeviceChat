@@ -21,7 +21,8 @@ namespace Smart.Agent.Model
     public enum SensorType
     {
         Accelerometer = 0,
-        StrainGauge = 1
+        StrainGauge = 1,
+        Both = 2
     }
     public class Sensor
     {

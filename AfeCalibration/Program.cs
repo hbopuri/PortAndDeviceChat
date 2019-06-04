@@ -1,8 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using CommandLine;
+using Newtonsoft.Json;
 using Smart.Agent.Business;
 using Smart.Agent.Constant;
 using Smart.Agent.Helper;
@@ -20,7 +22,8 @@ namespace AfeCalibration
         private static Options _options;
         private static bool _printMenu = true;
         private static bool _isTip;
-
+        private static DataPortConfig _readDataPortConfig;
+        private static string filePath = $"{AppDomain.CurrentDomain.BaseDirectory}Balancing.json";
         [STAThread]
         // ReSharper disable once UnusedParameter.Local
         static async Task Main(string[] args)
@@ -77,7 +80,12 @@ namespace AfeCalibration
                     _ = _smartPort.Go(menuOption: command);
                     return;
                 }
-                var readDataPortConfig = _smartPort.ReadDataPortConfig();
+                _readDataPortConfig = _smartPort.ReadDataPortConfig();
+                if(_readDataPortConfig.SensorChannels[2].Active.ToDecimal(0) == 01
+                    && _readDataPortConfig.SensorChannels[3].Active.ToDecimal(0) == 01)
+                {
+                    _isTip = true;
+                }
                 //CompareDataPortConfig(readDataPortConfig, defaultDataPortConfig);
                 var portTask = _smartPort.Go(menuOption: CommandType.Collect);
                 while (portTask.Result.Selection != CommandType.Exit)
@@ -89,7 +97,7 @@ namespace AfeCalibration
                                 if (portTask.Result.ReturnObject != null)
                                 {
                                     var sensors = ((List<Sensor>)portTask.Result.ReturnObject);
-                                    PrintCollectResponse(sensors);
+                                    PrintCollectResponse(sensors, SensorType.Both);
                                 }
                                 break;
                             }
@@ -98,20 +106,21 @@ namespace AfeCalibration
                                 if (portTask.Result.ReturnObject != null)
                                 {
                                     var sensors = ((List<Sensor>)portTask.Result.ReturnObject);
-                                    if (sensors[1].Data != null && sensors[1].Data.Any())
-                                    {
-                                        var channelThreeQuantized =
-                                        //Math.Truncate(sensors[1].Data.Select(x => BitConverter.ToUInt16(x.Bytes, 0))
-                                        //    .Average(x => x));
-                                        Math.Truncate(sensors[1].Data.Average(x => x.Value));
-                                        _isTip = channelThreeQuantized < 300 || channelThreeQuantized > 3800;
-                                    }
+                                    //if (sensors[1].Data != null && sensors[1].Data.Any())
+                                    //{
+                                    //    var channelThreeQuantized =
+                                    //    //Math.Truncate(sensors[1].Data.Select(x => BitConverter.ToUInt16(x.Bytes, 0))
+                                    //    //    .Average(x => x));
+                                    //    //Math.Truncate(sensors[1].Data.Average(x => x.Value));
+                                    //    Math.Truncate(sensors[1].Data.Select(x => BitConverter.ToUInt16(x.Bytes, 0)).Average(x => x));
+                                    //    _isTip = channelThreeQuantized < 300 || channelThreeQuantized > 3800;
+                                    //}
 
-                                    PrintCollectResponse(sensors);
+                                    PrintCollectResponse(sensors, SensorType.Both);
                                     //if (_options.Model.Equals(2))
                                     //    sensors = sensors.Skip(2).Take(2).ToList();
-                                    await AdjustStrain(readDataPortConfig, sensors);
-                                    await AdjustAx(readDataPortConfig, sensors);
+                                    await AdjustStrain(_readDataPortConfig, sensors);
+                                    await AdjustAx(_readDataPortConfig, sensors);
                                 }
 
                                 break;
@@ -185,7 +194,7 @@ namespace AfeCalibration
                                     .Where(x => x.Type == SensorType.Accelerometer).ToList();
                                 break;
                         }
-                        PrintCollectResponse(axSensors);
+                        PrintCollectResponse(axSensors, SensorType.Accelerometer);
                     }
 
                     //while (axSensors.Select(s => Math.Truncate(s.Data.Average(x => x.Value)))
@@ -212,7 +221,7 @@ namespace AfeCalibration
                                     .Where(x => x.Type == SensorType.Accelerometer).ToList();
                                 break;
                         }
-                        PrintCollectResponse(axSensors);
+                        PrintCollectResponse(axSensors, SensorType.Accelerometer);
                     }
 
                     //if (axSensors.Select(s => Math.Truncate(s.Data.Average(x => x.Value)))
@@ -234,6 +243,7 @@ namespace AfeCalibration
                         isBalanced = true;
                     }
                 }
+                Balanced(SensorType.Accelerometer);
             }
         }
         private static async Task AdjustStrain(DataPortConfig readDataPortConfig, List<Sensor> sensors)
@@ -275,7 +285,7 @@ namespace AfeCalibration
                                     .Where(x => x.Type == SensorType.StrainGauge).ToList();
                                 break;
                         }
-                        PrintCollectResponse(strainSensors);
+                        PrintCollectResponse(strainSensors, SensorType.StrainGauge);
                     }
 
                     //while (strainSensors.Select(s => Math.Truncate(s.Data.Average(x => x.Value)))
@@ -303,7 +313,7 @@ namespace AfeCalibration
                                     .Where(x => x.Type == SensorType.StrainGauge).ToList();
                                 break;
                         }
-                        PrintCollectResponse(strainSensors);
+                        PrintCollectResponse(strainSensors, SensorType.StrainGauge);
                     }
 
                     //if (strainSensors.Select(s => Math.Truncate(s.Data.Average(x => x.Value)))
@@ -325,18 +335,98 @@ namespace AfeCalibration
                         isBalanced = true;
                     }
                 }
+
+                Balanced(SensorType.StrainGauge);
             }
         }
 
-        private static void PrintCollectResponse(List<Sensor> sensors)
+        private static void Balanced(SensorType type)
+        {
+            if (!File.Exists(filePath))
+            {
+                File.Create(filePath).Close();
+            }
+            var data = File.ReadAllText(filePath);
+            var balancingData = !string.IsNullOrWhiteSpace(data)
+                     ? JsonConvert.DeserializeObject<BalanceSensor>(data)
+                     : new BalanceSensor();
+            if (balancingData.ChannelOne.ChannelName == type.ToString())
+                balancingData.ChannelOne.IsCompleted = true;
+            if (balancingData.ChannelTwo.ChannelName == type.ToString())
+                balancingData.ChannelTwo.IsCompleted = true;
+            var balancingInString = JsonConvert.SerializeObject(balancingData);
+            File.WriteAllText(filePath, balancingInString);
+        }
+
+        private static void PrintCollectResponse(List<Sensor> sensors, SensorType type)
         {
             ConsoleColor borderColor = ConsoleColor.Yellow;
             Console.ForegroundColor = borderColor;
-            foreach (var sensor in sensors)
+            foreach (var sensor in sensors.Where(x=> _isTip ? x.Afe == Afe.Tip : x.Afe == Afe.Top))
             {
+                var quantized = Math.Truncate(sensor.Data.Select(x => BitConverter.ToUInt16(x.Bytes, 0)).Average(x => x));
                 SmartLog.WriteLine(
                     $"{sensor.Afe} ({sensor.Data.Count} samples): {sensor.Type}:{Math.Truncate(sensor.Data.Average(x => x.Value))}," +
-                    $" Quantized: {Math.Truncate(sensor.Data.Select(x => BitConverter.ToUInt16(x.Bytes, 0)).Average(x => x))}");
+                    $" Quantized: {quantized}");
+                
+                if (!File.Exists(filePath))
+                {
+                    File.Create(filePath).Close();
+                }
+                var data = File.ReadAllText(filePath);
+               var balancingData = !string.IsNullOrWhiteSpace(data)
+                        ? JsonConvert.DeserializeObject<BalanceSensor>(data)
+                        : new BalanceSensor();
+                if (_isTip)
+                {
+                    if (_readDataPortConfig.SensorChannels[2].Type.ToDecimal(0) == (int)SensorType.StrainGauge)
+                    {
+                        balancingData.ChannelOne.ChannelName = SensorType.StrainGauge.ToString();
+                    }
+                    else{
+                        balancingData.ChannelOne.ChannelName = SensorType.Accelerometer.ToString();
+                    }
+                    if (_readDataPortConfig.SensorChannels[3].Type.ToDecimal(0) == (int)SensorType.StrainGauge)
+                    {
+                        balancingData.ChannelTwo.ChannelName = SensorType.StrainGauge.ToString();
+                    }
+                    else
+                    {
+                        balancingData.ChannelTwo.ChannelName = SensorType.Accelerometer.ToString();
+                    }
+                }
+                else
+                {
+                    if (_readDataPortConfig.SensorChannels[0].Type.ToDecimal(0) == (int)SensorType.StrainGauge)
+                    {
+                        balancingData.ChannelOne.ChannelName = SensorType.StrainGauge.ToString();
+                    }
+                    else
+                    {
+                        balancingData.ChannelOne.ChannelName = SensorType.Accelerometer.ToString();
+                    }
+                    if (_readDataPortConfig.SensorChannels[1].Type.ToDecimal(0) == (int)SensorType.StrainGauge)
+                    {
+                        balancingData.ChannelTwo.ChannelName = SensorType.StrainGauge.ToString();
+                    }
+                    else
+                    {
+                        balancingData.ChannelTwo.ChannelName = SensorType.Accelerometer.ToString();
+                    }
+                }
+                if(balancingData.ChannelOne.ChannelName == type.ToString())
+                    balancingData.ChannelOne.Reading.Add(quantized);
+                if (balancingData.ChannelTwo.ChannelName == type.ToString())
+                    balancingData.ChannelTwo.Reading.Add(quantized);
+                if(type.ToString() == SensorType.Both.ToString())
+                {
+                    if(balancingData.ChannelOne.ChannelName == sensor.Type.ToString())
+                        balancingData.ChannelOne.Reading.Add(quantized);
+                    if (balancingData.ChannelTwo.ChannelName == sensor.Type.ToString())
+                        balancingData.ChannelTwo.Reading.Add(quantized);
+                }
+                var balancingInString = JsonConvert.SerializeObject(balancingData);
+                File.WriteAllText(filePath, balancingInString);
             }
 
             borderColor = ConsoleColor.White;
@@ -450,6 +540,10 @@ namespace AfeCalibration
 
         private static void Init()
         {
+            if (File.Exists(filePath))
+            {
+                File.WriteAllText(filePath, "");
+            }
             ConsoleColor BorderColor = ConsoleColor.White;
             Console.ForegroundColor = BorderColor;
             _smartPort = new SmartPort();

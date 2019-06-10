@@ -37,6 +37,11 @@ namespace Smart.Agent.Business
             return rv;
         }
 
+        public object Go(object menuOption)
+        {
+            throw new NotImplementedException();
+        }
+
         private void HandleSerialData(byte[] respBuffer)
         {
             _responseBuffer = _responseBuffer == null ? respBuffer : Combine(_responseBuffer, respBuffer);

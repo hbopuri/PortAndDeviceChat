@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 15
-VisualStudioVersion = 15.0.28307.271
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.28803.452
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AfeCalibration", "AfeCalibration\AfeCalibration.csproj", "{05C32096-D150-4918-8490-5F2E49BD4890}"
 EndProject
@@ -10,6 +10,8 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Smart.Hid", "Smart.Hid\Smart.Hid.csproj", "{2F4BF948-460C-4BDE-8978-A27D65AD12AD}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Smart.Log", "Smart.Log\Smart.Log.csproj", "{9F7BCEF8-3F61-45D3-838B-83B320B9B4E3}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Smart.Test", "Smart.Test\Smart.Test.csproj", "{728E5D1B-598F-4F85-87EE-CB4E3CC3C7AA}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -33,6 +35,10 @@ Global
 		{9F7BCEF8-3F61-45D3-838B-83B320B9B4E3}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{9F7BCEF8-3F61-45D3-838B-83B320B9B4E3}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{9F7BCEF8-3F61-45D3-838B-83B320B9B4E3}.Release|Any CPU.Build.0 = Release|Any CPU
+		{728E5D1B-598F-4F85-87EE-CB4E3CC3C7AA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{728E5D1B-598F-4F85-87EE-CB4E3CC3C7AA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{728E5D1B-598F-4F85-87EE-CB4E3CC3C7AA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{728E5D1B-598F-4F85-87EE-CB4E3CC3C7AA}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

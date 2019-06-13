@@ -33,7 +33,7 @@ namespace Smart.Agent.Model
             CommandQueue.Add(new Queue
             { SequenceId = 1, CommandName = "IF", CommandType = Constant.CommandType.If, ExpectedPacketSize = 4, CommBytes = _command.If(), MaxRetry = 1, RetryWait = _defaultRetryWait, WaitForNext = _defaultNextCommandWait, MoveNext = true });
             CommandQueue.Add(new Queue
-                { SequenceId = 2, CommandName = "POWER ON", CommandType = Constant.CommandType.PowerOn, ExpectedPacketSize = 5, CommBytes = _command.PowerOn(), MaxRetry = 3, RetryWait= _defaultRetryWait, WaitForNext = 10, MoveNext = true });
+                { SequenceId = 2, CommandName = "POWER ON", CommandType = Constant.CommandType.PowerOn, ExpectedPacketSize = 5, CommBytes = _command.PowerOn(), MaxRetry = 3, RetryWait= _defaultRetryWait, WaitForNext = 25, MoveNext = true });
             CommandQueue.Add(new Queue
                 { SequenceId = 3, CommandName = "CONNECT", CommandType = Constant.CommandType.Connect, ExpectedPacketSize = 15,  CommBytes = _command.Connect(), MaxRetry = 10, RetryWait = _defaultRetryWait, WaitForNext = _defaultNextCommandWait, MoveNext = true });
             CommandQueue.Add(new Queue

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 
 namespace Smart.Log
 {
@@ -13,6 +14,14 @@ namespace Smart.Log
             Console.WriteLine(value);
         }
 
+        public static void WriteToEvent(string message)
+        {
+            using (EventLog eventLog = new EventLog("Application"))
+            {
+                eventLog.Source = "AfeCalibration";
+                eventLog.WriteEntry(message, EventLogEntryType.Information, 101, 1);
+            }
+        }
         public static void WriteErrorLine(string value)
         {
             ConsoleColor borderColor = ConsoleColor.Red;

@@ -90,7 +90,7 @@ namespace Smart.Test
                     break;
                 }
                 loopCounter++;
-                Thread.Sleep(TimeSpan.FromSeconds(1));
+                Thread.Sleep(TimeSpan.FromSeconds(10));
             }
         }
         private static void Init()

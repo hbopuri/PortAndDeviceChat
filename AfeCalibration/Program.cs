@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -28,42 +29,71 @@ namespace AfeCalibration
         // ReSharper disable once UnusedParameter.Local
         static async Task Main(string[] args)
         {
+            if (args == null)
+                SmartLog.WriteToEvent($"AFE Cal - Nor Arguments: {DateTime.Now.ToString("MM/dd/yyyy hh:mm:ss")}");
+            else
+                SmartLog.WriteToEvent($"AFE Cal -{string.Join(", ", args)} :{DateTime.Now.ToString("MM / dd / yyyy hh: mm:ss")}");
+            //return;
             await Run(args);
         }
         public static async Task Run(string[] args)
         {
-            Console.Clear();
-            Parser.Default.ParseArguments<Options>(args)
-                .WithParsed(o =>
+            //Console.Clear();
+            try
+            {
+                Parser.Default.ParseArguments<Options>(args)
+                              .WithParsed(o =>
+                              {
+                                  _options = o;
+                                  SmartLog.WriteLine(!string.IsNullOrWhiteSpace(o.BoardId)
+                                      ? $"Entered IFB Board Id (in Hex). Current Arguments: --ifb {o.BoardId.ToUpper()}"
+                                      : $"No IFB Board Id passed. Current Arguments: --ifb");
+                                  SmartLog.WriteLine(o.PrintRequest
+                                      ? $"Print Request enabled. Current Arguments: --req {o.PrintRequest}"
+                                      : $"Print Request disabled. Current Arguments: --req {o.PrintRequest}");
+                                  SmartLog.WriteLine(o.PrintResponse
+                                      ? $"Print Response enabled. Current Arguments: --res {o.PrintResponse}"
+                                      : $"Print Response disabled. Current Arguments: --res {o.PrintResponse}");
+                                  SmartLog.WriteLine(o.PrintDataPortConfig
+                                      ? $"Print Data Port Config enabled. Current Arguments: --conf {o.PrintDataPortConfig}"
+                                      : $"Print Data Port Config disabled. Current Arguments: --conf {o.PrintDataPortConfig}");
+                                  SmartLog.WriteLine(o.Model == 1 || o.Model == 2
+                                      ? $"Entered Model. Current Arguments: --mdl {o.Model + (o.Model == 1 ? ":Ax-Sg" : ":Sg-Sg")}"
+                                      : $"No Model entered. Current Arguments: --mdl");
+                                  SmartLog.WriteLine(!string.IsNullOrWhiteSpace(o.Command)
+                                     ? $"Entered Command. Current Arguments: --cmd {o.Command.ToUpper()}"
+                                     : $"No Command passed. Current Arguments: --cmd");
+                              });
+            }
+            catch (Exception exception)
+            {
+                //SmartLog.WriteToEvent(exception.Message);
+                SmartLog.WriteErrorLine(exception.ToString());
+            }
+            finally
+            {
+                if (_options == null || string.IsNullOrWhiteSpace(_options.BoardId))
                 {
-                    _options = o;
-                    SmartLog.WriteLine(!string.IsNullOrWhiteSpace(o.BoardId)
-                        ? $"Entered IFB Board Id (in Hex). Current Arguments: --ifb {o.BoardId.ToUpper()}"
-                        : $"No IFB Board Id passed. Current Arguments: --ifb");
-                    SmartLog.WriteLine(o.PrintRequest
-                        ? $"Print Request enabled. Current Arguments: --req {o.PrintRequest}"
-                        : $"Print Request disabled. Current Arguments: --req {o.PrintRequest}");
-                    SmartLog.WriteLine(o.PrintResponse
-                        ? $"Print Response enabled. Current Arguments: --res {o.PrintResponse}"
-                        : $"Print Response disabled. Current Arguments: --res {o.PrintResponse}");
-                    SmartLog.WriteLine(o.PrintDataPortConfig
-                        ? $"Print Data Port Config enabled. Current Arguments: --conf {o.PrintDataPortConfig}"
-                        : $"Print Data Port Config disabled. Current Arguments: --conf {o.PrintDataPortConfig}");
-                    SmartLog.WriteLine(o.Model == 1 || o.Model == 2
-                        ? $"Entered Model. Current Arguments: --mdl {o.Model + (o.Model == 1 ? ":Ax-Sg" : ":Sg-Sg")}"
-                        : $"No Model entered. Current Arguments: --mdl");
-                    SmartLog.WriteLine(!string.IsNullOrWhiteSpace(o.Command)
-                       ? $"Entered Command. Current Arguments: --cmd {o.Command.ToUpper()}"
-                       : $"No Command passed. Current Arguments: --cmd");
-                });
-
+                    _options = new Options
+                    {
+                        BoardId = args[0],
+                        Model = Convert.ToInt32(args[1]),
+                    };
+                }
+            }
+          
+            
             if (args != null && args.Any() && args[0].Equals("--help", StringComparison.InvariantCultureIgnoreCase))
                 return;
             if (args != null && args.Any() && args[0].Equals("--version", StringComparison.InvariantCultureIgnoreCase))
                 return;
-
+          
             Greet();
             Init();
+            if (_options == null)
+                SmartLog.WriteToEvent($"_options  == null");
+            else
+                SmartLog.WriteToEvent($"BoardId: {_options.BoardId}, Model: {_options.Model}");
             if (!DetectComPort())
                 return;
             GetBoardId();
@@ -138,14 +168,15 @@ namespace AfeCalibration
                     }
 
                     //portTask = _smartPort.Go(menuOption: _smartPort.Menu());
-                    portTask = _smartPort.Go(menuOption: _smartPort.Menu(_printMenu));
+                    //portTask = _smartPort.Go(menuOption: _smartPort.Menu(_printMenu));
+                    Console.WriteLine("Completed Job");
                     _printMenu = false;
                 }
             }
             catch (Exception exception)
             {
                 SmartLog.WriteErrorLine(exception.Message);
-
+                File.WriteAllText(filePath, exception.ToString());
                 _ = _smartPort.Go(menuOption: CommandType.PowerOff);
             }
 
@@ -475,6 +506,7 @@ namespace AfeCalibration
             SmartLog.WriteLine(" Analog Front End (AFE) Calibration");
             SmartLog.WriteLine("--------------------------------------------------------");
             SmartLog.WriteLine("--------------------------------------------------------");
+            //SmartLog.WriteToEvent($"Greeting - {DateTime.Now.ToString("MM/dd/yyyy hh:mm:ss")}");
         }
 
         private static void GetBoardId()
@@ -547,6 +579,7 @@ namespace AfeCalibration
             ConsoleColor BorderColor = ConsoleColor.White;
             Console.ForegroundColor = BorderColor;
             _smartPort = new SmartPort();
+            //SmartLog.WriteToEvent($"Init - {DateTime.Now.ToString("MM/dd/yyyy hh:mm:ss")}");
         }
     }
 }

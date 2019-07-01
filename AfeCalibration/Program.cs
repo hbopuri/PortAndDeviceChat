@@ -171,6 +171,7 @@ namespace AfeCalibration
                     //portTask = _smartPort.Go(menuOption: _smartPort.Menu(_printMenu));
                     Console.WriteLine("Completed Job");
                     _printMenu = false;
+                    break;
                 }
             }
             catch (Exception exception)
@@ -267,11 +268,13 @@ namespace AfeCalibration
                             .All(x => x >= AxRange.Min) && saveRequire)
                     {
                         await _smartPort.Go(menuOption: CommandType.SaveAx);
+                        PrintCollectResponse(axSensors, SensorType.Accelerometer);
                         isBalanced = true;
                     }
                     else if (!saveRequire)
                     {
                         isBalanced = true;
+                        PrintCollectResponse(axSensors, SensorType.Accelerometer);
                     }
                 }
                 Balanced(SensorType.Accelerometer);
@@ -359,11 +362,13 @@ namespace AfeCalibration
                             .All(x => x >= StrainRange.Min) && saveRequire)
                     {
                         await _smartPort.Go(menuOption: CommandType.SaveSg);
+                        PrintCollectResponse(strainSensors, SensorType.StrainGauge);
                         isBalanced = true;
                     }
                     else if (!saveRequire)
                     {
                         isBalanced = true;
+                        PrintCollectResponse(strainSensors, SensorType.StrainGauge);
                     }
                 }
 
@@ -451,10 +456,10 @@ namespace AfeCalibration
                     balancingData.ChannelTwo.Reading.Add(quantized);
                 if(type.ToString() == SensorType.Both.ToString())
                 {
-                    if(balancingData.ChannelOne.ChannelName == sensor.Type.ToString())
-                        balancingData.ChannelOne.Reading.Add(quantized);
-                    if (balancingData.ChannelTwo.ChannelName == sensor.Type.ToString())
-                        balancingData.ChannelTwo.Reading.Add(quantized);
+                    //if(balancingData.ChannelOne.ChannelName == sensor.Type.ToString())
+                    //    balancingData.ChannelOne.Reading.Add(quantized);
+                    //if (balancingData.ChannelTwo.ChannelName == sensor.Type.ToString())
+                    //    balancingData.ChannelTwo.Reading.Add(quantized);
                 }
                 var balancingInString = JsonConvert.SerializeObject(balancingData);
                 File.WriteAllText(filePath, balancingInString);

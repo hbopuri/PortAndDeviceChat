@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.IO.Ports;
 using System.Linq;
 using System.Management;
@@ -46,7 +45,8 @@ namespace Smart.Agent.Business
         {
             _responseBuffer = _responseBuffer == null ? respBuffer : Combine(_responseBuffer, respBuffer);
 
-            //if (_currentCommand.CommandType == CommandType.Collect)
+            //if (_currentCommand.CommandType == CommandType.Collect
+            //    || _currentCommand.CommandType == CommandType.JustCollect)
             //{
             //    Task.Run(() => SmartLog.WriteLine(_responseBuffer.ToHex()));
             //}
@@ -798,6 +798,17 @@ namespace Smart.Agent.Business
             var loopResponse = new LoopResponse {Selection = menuOption};
             switch (menuOption)
             {
+                case CommandType.Connect:
+                    try
+                    {
+                        Connect();
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.Clear();
+                        SmartLog.WriteLine(ex.ToString());
+                    }
+                    break;
                 case CommandType.Collect:
                     try
                     {
@@ -1057,7 +1068,19 @@ namespace Smart.Agent.Business
 
             return _dataPortConfig;
         }
+        public List<Sensor> Connect()
+        {
+            var command = _commaQueue.CommandQueue.FirstOrDefault(x =>
+                x.CommandName.Equals("CONNECT", StringComparison.OrdinalIgnoreCase));
+            if (command != null)
+            {
+                command.WaitForNext = 3;
+                //collectCommand.MaxRetry = 15;
+                ExecuteCommand(command);
+            }
 
+            return _sensors;
+        }
         public List<Sensor> Collect()
         {
             var collectCommand = _commaQueue.CommandQueue.FirstOrDefault(x =>

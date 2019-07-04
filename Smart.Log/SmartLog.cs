@@ -22,6 +22,14 @@ namespace Smart.Log
                 eventLog.WriteEntry(message, EventLogEntryType.Information, 101, 1);
             }
         }
+        public static void WriteHighlight(string value)
+        {
+            ConsoleColor borderColor = ConsoleColor.Yellow;
+            Console.ForegroundColor = borderColor;
+            Console.WriteLine(value);
+            borderColor = ConsoleColor.White;
+            Console.ForegroundColor = borderColor;
+        }
         public static void WriteErrorLine(string value)
         {
             ConsoleColor borderColor = ConsoleColor.Red;

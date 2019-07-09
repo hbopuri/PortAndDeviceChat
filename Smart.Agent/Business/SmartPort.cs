@@ -927,6 +927,17 @@ namespace Smart.Agent.Business
                     }
 
                     return await Task.FromResult(loopResponse);
+                case CommandType.SetAx:
+                    try
+                    {
+                        await UsbToSpiConverter.IncrementOrDecrementAx(AxAdjust.HitTheNail);
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.Clear();
+                        SmartLog.WriteLine(ex.ToString());
+                    }
+                    return await Task.FromResult(loopResponse);
                 case CommandType.SaveAx:
                     try
                     {

@@ -23,7 +23,7 @@ namespace AfeCalibration
         private static bool _printMenu = true;
         private static bool _isTip;
         private static int _accelIncDecInterval = 4;
-        private static int _strainIncDecInterval = 4;
+        private static int _strainIncDecInterval = 3;
         private static DataPortConfig _readDataPortConfig;
         private static string filePath = $"{AppDomain.CurrentDomain.BaseDirectory}Balancing.json";
         [STAThread]
@@ -240,7 +240,8 @@ namespace AfeCalibration
                         //    _smartPort.Go(menuOption: CommandType.MinAx).Wait();
                         //    loopCount--;
                         //}
-                        await _smartPort.Go(menuOption: CommandType.MinAx);
+                        //await _smartPort.Go(menuOption: CommandType.MinAx);
+                        await _smartPort.Go(menuOption: CommandType.SetAx);
                         portTask = _smartPort.Go(menuOption: CommandType.Collect);
                         switch (_options.Model)
                         {
@@ -274,7 +275,8 @@ namespace AfeCalibration
                         //    _smartPort.Go(menuOption: CommandType.MaxAx).Wait();
                         //    loopCount--;
                         //}
-                        await _smartPort.Go(menuOption: CommandType.MaxAx);
+                        //await _smartPort.Go(menuOption: CommandType.MaxAx);
+                        await _smartPort.Go(menuOption: CommandType.SetAx);
                         portTask = _smartPort.Go(menuOption: CommandType.Collect);
                         switch (_options.Model)
                         {
@@ -326,7 +328,6 @@ namespace AfeCalibration
                 var saveRequire = false;
                 while (!isBalanced)
                 {
-
                     //while (strainSensors.Select(s => Math.Truncate(s.Data.Average(x => x.Value)))
                     //    .All(x => x < StrainRange.Min))
                     var strainValues = strainSensors.Select(s =>
@@ -337,16 +338,27 @@ namespace AfeCalibration
                     if (strainValues.All(x=>x < StrainRange.Min))
                     {
                         saveRequire = true;
-                        //var loopCount = (StrainRange.Min - Convert.ToInt32(strainValues.Max())) / _strainIncDecInterval;
-                        //var reminder = StrainRange.Min % Convert.ToInt32(strainValues.Max());
-                        //if (reminder > 0)
-                        //    loopCount++;
-                        //while (loopCount > 0)
-                        //{
-                        //    _smartPort.Go(menuOption: CommandType.IncrementSg).Wait();
-                        //    loopCount--;
-                        //}
-                        await _smartPort.Go(menuOption: CommandType.IncrementSg);
+                        var loopCount = ((StrainRange.Min - 50) - Convert.ToInt32(strainValues.Max())) / _strainIncDecInterval;
+                        var reminder = (StrainRange.Min - 50) % Convert.ToInt32(strainValues.Max());
+                        if (reminder > 0)
+                            loopCount++;
+                        bool singleIncrement = false;
+                        if (Math.Abs(StrainRange.Min - Convert.ToInt32(strainValues.Max())) <= _strainIncDecInterval
+                            || Math.Abs(StrainRange.Max - Convert.ToInt32(strainValues.Max())) <= _strainIncDecInterval)
+                            singleIncrement = true;
+
+                        if (loopCount > 0 && !singleIncrement)
+                        {
+                            while (loopCount > 0)
+                            {
+                                _smartPort.Go(menuOption: CommandType.IncrementSg).Wait();
+                                loopCount--;
+                            }
+                        }
+                        else
+                        {
+                            await _smartPort.Go(menuOption: CommandType.IncrementSg);
+                        }
                         portTask = _smartPort.Go(menuOption: CommandType.Collect);
                         switch (_options.Model)
                         {
@@ -371,16 +383,27 @@ namespace AfeCalibration
                     if (strainValues.All(x => x > StrainRange.Max))
                     {
                         saveRequire = true;
-                        //var loopCount = (Convert.ToInt32(strainValues.Max()) - StrainRange.Max) / _strainIncDecInterval;
-                        //var reminder = Convert.ToInt32(strainValues.Max()) % StrainRange.Max;
-                        //if (reminder > 0)
-                        //    loopCount++;
-                        //while (loopCount > 0)
-                        //{
-                        //    _smartPort.Go(menuOption: CommandType.DecrementSg).Wait();
-                        //    loopCount--;
-                        //}
-                        await _smartPort.Go(menuOption: CommandType.DecrementSg);
+                        var loopCount = (Convert.ToInt32(strainValues.Max()) - (StrainRange.Max-50)) / _strainIncDecInterval;
+                        var reminder = Convert.ToInt32(strainValues.Max()) % (StrainRange.Max - 50);
+                        if (reminder > 0)
+                            loopCount++;
+                        bool singleIncrement = false;
+                        if (Math.Abs(StrainRange.Min - Convert.ToInt32(strainValues.Max())) <= _strainIncDecInterval
+                            || Math.Abs(StrainRange.Max - Convert.ToInt32(strainValues.Max())) <= _strainIncDecInterval)
+                            singleIncrement = true;
+
+                        if (loopCount > 0 && !singleIncrement)
+                        {
+                            while (loopCount > 0)
+                            {
+                                _smartPort.Go(menuOption: CommandType.DecrementSg).Wait();
+                                loopCount--;
+                            }
+                        }
+                        else
+                        {
+                            await _smartPort.Go(menuOption: CommandType.DecrementSg);
+                        }
                         portTask = _smartPort.Go(menuOption: CommandType.Collect);
                         switch (_options.Model)
                         {

@@ -19,5 +19,6 @@
         public const int Exit = 15;
         public const int JustCollect = 16;
         public const int Connect = 0;
+        public const int SetAx = 17;
     }
 }

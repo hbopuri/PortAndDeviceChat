@@ -16,11 +16,13 @@ namespace Smart.Hid
         public const ushort DefaultPid = 0xde;
         private static IntPtr _deviceHandle;
         private static int _response;
+        private static bool _printRequest;
         private static int _deviceCount;
-        private static int _value = 0x0080;
+        private static int _value = 0x0080; //MIdValue: 0x0080; 0x0063;
 
-        public static async Task<int> Init()
+        public static async Task<int> Init(bool printRequest)
         {
+            _printRequest = printRequest;
             _deviceCount = MCP2210.M_Mcp2210_GetConnectedDevCount(DefaultVid, DefaultPid);
             SmartLog.WriteLine(_deviceCount + " SPI Module Device(s) found");
             if (_deviceCount <= 0) return _response;
@@ -46,7 +48,7 @@ namespace Smart.Hid
         {
             if (_deviceCount == 0)
             {
-                await Init();
+                await Init(_printRequest);
             }
 
 
@@ -86,6 +88,8 @@ namespace Smart.Hid
             _response = MCP2210.M_Mcp2210_xferSpiDataEx(_deviceHandle, txData, rxData, ref baudRate2, ref txFerSize2,
                 csMask4, ref idleCsVal2, ref activeCsVal2, ref csToDataDly2,
                 ref dataToCsDly2, ref dataToDataDly2, ref spiMd2);
+            if (_printRequest)
+                SmartLog.WriteHighlight($"Strain req: " + txData.ToHex());
             if (_response != MCP2210.M_E_SUCCESS)
             {
                 MCP2210.M_Mcp2210_Close(_deviceHandle);
@@ -102,7 +106,7 @@ namespace Smart.Hid
         {
             if (_deviceCount == 0)
             {
-                await Init();
+                await Init(_printRequest);
             }
 
             // set the SPI xFer params for I/O expander
@@ -141,6 +145,10 @@ namespace Smart.Hid
                     txData[0] = 0x00;
                     txData[1] = 0x5F;
                     break;
+                case AxAdjust.ToDesiredRange:
+                    txData[0] = 0x00;
+                    txData[1] = 0x63;
+                    break;
                 case AxAdjust.Save:
                     txData[0] = 0x20;
                     txData[1] = _value.ToString("X4").ToByteArray()[1];
@@ -156,7 +164,8 @@ namespace Smart.Hid
             _response = MCP2210.M_Mcp2210_xferSpiDataEx(_deviceHandle, txData, rxData, ref baudRate2, ref txFerSize2,
                 csMask4, ref idleCsVal2, ref activeCsVal2, ref csToDataDly2,
                 ref dataToCsDly2, ref dataToDataDly2, ref spiMd2);
-
+            if(_printRequest)
+                SmartLog.WriteHighlight($"Ax req: " + txData.ToHex());
             if (_response != MCP2210.M_E_SUCCESS)
             {
                 MCP2210.M_Mcp2210_Close(_deviceHandle);

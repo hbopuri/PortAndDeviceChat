@@ -22,7 +22,7 @@ namespace AfeCalibration
         private static Options _options;
         private static bool _printMenu = true;
         private static bool _isTip;
-        private static int _accelIncDecInterval = 4;
+        private static int _accelIncDecInterval = 6;
         private static int _strainIncDecInterval = 3;
         private static DataPortConfig _readDataPortConfig;
         private static string filePath = $"{AppDomain.CurrentDomain.BaseDirectory}Balancing.json";
@@ -231,17 +231,33 @@ namespace AfeCalibration
                     if (accelValue < AxRange.Min)
                     {
                         saveRequire = true;
-                        //var loopCount = (AxRange.Min - Convert.ToInt32(accelValue)) / _accelIncDecInterval ;
-                        //var reminder = AxRange.Min % Convert.ToInt32(accelValue);
-                        //if (reminder > 0)
-                        //    loopCount++;
-                        //while (loopCount > 0)
-                        //{
-                        //    _smartPort.Go(menuOption: CommandType.MinAx).Wait();
-                        //    loopCount--;
-                        //}
-                        //await _smartPort.Go(menuOption: CommandType.MinAx);
-                        await _smartPort.Go(menuOption: CommandType.SetAx);
+
+
+                        var loopCount = (AxRange.Min - Convert.ToInt32(accelValue)) / _accelIncDecInterval;
+                        var reminder = AxRange.Min % Convert.ToInt32(accelValue);
+                        if (reminder > 0)
+                            loopCount++;
+                        bool singleIncrement = false;
+                        if (Math.Abs(AxRange.Min - Convert.ToInt32(accelValue)) <= _accelIncDecInterval
+                            || Math.Abs(AxRange.Max - Convert.ToInt32(accelValue)) <= _accelIncDecInterval)
+                            singleIncrement = true;
+
+                        if (loopCount > 0 && !singleIncrement)
+                        {
+                            while (loopCount > 0)
+                            {
+                                _smartPort.Go(menuOption: CommandType.MinAx).Wait();
+                                loopCount--;
+                            }
+                        }
+                        else
+                        {
+                            await _smartPort.Go(menuOption: CommandType.MinAx);
+                        }
+                        //if(Math.Abs(accelValue - AxRange.Min) > 10)
+                        //    await _smartPort.Go(menuOption: CommandType.SetAx);
+                        //else
+                        //    await _smartPort.Go(menuOption: CommandType.MinAx);
                         portTask = _smartPort.Go(menuOption: CommandType.Collect);
                         switch (_options.Model)
                         {
@@ -266,17 +282,31 @@ namespace AfeCalibration
                     if (accelValue > AxRange.Max)
                     {
                         saveRequire = true;
-                        //var loopCount = (Convert.ToInt32(accelValue) - AxRange.Max ) / _accelIncDecInterval;
-                        //var reminder = Convert.ToInt32(accelValue) % AxRange.Max;
-                        //if (reminder > 0)
-                        //    loopCount++;
-                        //while (loopCount > 0)
-                        //{
-                        //    _smartPort.Go(menuOption: CommandType.MaxAx).Wait();
-                        //    loopCount--;
-                        //}
-                        //await _smartPort.Go(menuOption: CommandType.MaxAx);
-                        await _smartPort.Go(menuOption: CommandType.SetAx);
+                        var loopCount = (Convert.ToInt32(accelValue) - AxRange.Max) / _accelIncDecInterval;
+                        var reminder = Convert.ToInt32(accelValue) % AxRange.Max;
+                        if (reminder > 0)
+                            loopCount++;
+                        bool singleIncrement = false;
+                        if (Math.Abs(AxRange.Min - Convert.ToInt32(accelValue)) <= _accelIncDecInterval
+                            || Math.Abs(AxRange.Max - Convert.ToInt32(accelValue)) <= _accelIncDecInterval)
+                            singleIncrement = true;
+
+                        if (loopCount > 0 && !singleIncrement)
+                        {
+                            while (loopCount > 0)
+                            {
+                                _smartPort.Go(menuOption: CommandType.MaxAx).Wait();
+                                loopCount--;
+                            }
+                        }
+                        else
+                        {
+                            await _smartPort.Go(menuOption: CommandType.MaxAx);
+                        }
+                        //if (Math.Abs(accelValue - AxRange.Max) > 10)
+                        //    await _smartPort.Go(menuOption: CommandType.SetAx);
+                        //else
+                        //    await _smartPort.Go(menuOption: CommandType.MaxAx);
                         portTask = _smartPort.Go(menuOption: CommandType.Collect);
                         switch (_options.Model)
                         {

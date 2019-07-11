@@ -716,7 +716,7 @@ namespace Smart.Agent.Business
             _port.DataReceived += port_DataReceived;
             _commaQueue = new Queue(interfaceId);
             _commaQueue.LoadLcmQueue();
-            await UsbToSpiConverter.Init();
+            await UsbToSpiConverter.Init(_options.PrintRequest);
         }
 
         public bool Start()
@@ -930,7 +930,7 @@ namespace Smart.Agent.Business
                 case CommandType.SetAx:
                     try
                     {
-                        await UsbToSpiConverter.IncrementOrDecrementAx(AxAdjust.HitTheNail);
+                        await UsbToSpiConverter.IncrementOrDecrementAx(AxAdjust.ToDesiredRange);
                     }
                     catch (Exception ex)
                     {
@@ -980,7 +980,7 @@ namespace Smart.Agent.Business
                     try
                     {
                         PowerOn();
-                        await UsbToSpiConverter.Init();
+                        await UsbToSpiConverter.Init(_options.PrintRequest);
                     }
                     catch (Exception ex)
                     {

@@ -12,5 +12,14 @@ namespace AfeCalibration
         public string ChannelName { get; set; }
         public List<double> Reading { get; set; } = new List<double>();
         public bool IsCompleted { get; set; }
+        public MemsTest MemsTest { get; set; } = new MemsTest();
+    }
+    public class MemsTest
+    {
+        public List<TestIteration> TestIteration { get; set; } = new List<TestIteration>();
+    }
+    public class TestIteration
+    {
+        public List<double> Reading { get; set; } = new List<double>();
     }
 }

@@ -19,5 +19,11 @@ namespace Smart.Agent.Model
 
         [Option("cmd", HelpText = "Enter Single command")]
         public string Command { get; set; }
+        [Option("memsCycle", Default = 8, HelpText = "Number of cycles for Mems Test")]
+        public int MemsTestCycle { get; set; }
+        [Option("memsMin", Default = 16, HelpText = "MEMS test default Min Value")]
+        public double MemsTestMin { get; set; }
+        [Option("memsMax", Default = 18, HelpText = "MEMS test default Max Value")]
+        public double MemsTestMax { get; set; }
     }
 }

@@ -1145,10 +1145,12 @@ namespace Smart.Agent.Business
             return new DataPortConfig
             {
                 //FirmwareVersion = new byte[] {0x02, 0xBC},
-                //ActChannelsDataPacking = new byte[] {0x41},
-                ActChannelsDataPacking = new byte[] { 0x21 },
+                ActChannelsDataPacking = new byte[] {0x41},
+                //ActChannelsDataPacking = new byte[] { 0x21 },
                 SampleInterval = new byte[] {0x00, 0x04},
-                ModeFlag = new byte[] { 0x40 }
+                //ModePeriod = new byte[] { 0xBB },
+                ModeFlag = new byte[] { 0x40 },
+                
                 //ModeFlag = new byte[] {0x41} // Turn On Mode Flag in MEMS
                 //ModeFlag = new byte[] { 0x42 } // Turn Off Mode Flag MEMS
             };
@@ -1167,7 +1169,7 @@ namespace Smart.Agent.Business
             complete[4] = index5;
             complete[5] = index4;
 
-            complete[6] = 0xBC; // 0xBB RH;
+            complete[6] = 0xBC; // 0xBB RH Serial; 187 for serial, anythign else is BT
             complete[7] = 0x00;
             complete[8] = 0x00;
             complete[9] = 0x11;
@@ -1185,13 +1187,17 @@ namespace Smart.Agent.Business
             //complete[14] = 0x02;
             //complete[15] = 0x00;
 
-            complete[17] = defaultSettings.ModeFlag[0]; // 187 for serial, anythign else is BT
+            complete[17] = defaultSettings.ModeFlag[0]; 
 
             var currentUtcTime = DateTime.UtcNow.ToFourBytes();
-            complete[20] = currentUtcTime[3];
-            complete[21] = currentUtcTime[2];
-            complete[22] = currentUtcTime[1];
-            complete[23] = currentUtcTime[0];
+            //complete[20] = currentUtcTime[3];
+            //complete[21] = currentUtcTime[2];
+            //complete[22] = currentUtcTime[1];
+            //complete[23] = currentUtcTime[0];
+            complete[20] = 0;
+            complete[21] = 0;
+            complete[22] = 0;
+            complete[23] = 0;
             //complete[194] = ((int)complete[194] + 30).ToString("X").ToByteArray()[0];
             //SmartLog.WriteErrorLine($"currentUtcTime: {currentUtcTime.ToDecimal(0)}");
 
@@ -1200,7 +1206,7 @@ namespace Smart.Agent.Business
 
             complete[1] = (complete.Length).ToString("X").ToByteArray()[0];
 
-            var firstCheckSum = received.CompleteResponseBuffer.Skip(12).Take(received.CompleteResponseBuffer.Length - 3).ToArray().ToHex().ToByteArray();
+            var firstCheckSum = received.CompleteResponseBuffer.Skip(12).Take(received.CompleteResponseBuffer.Length - 12).ToArray().ToHex().Replace(" ","").ToByteArray();
             complete[complete.Length - 3] = firstCheckSum[0];
             complete[complete.Length - 2] = firstCheckSum[1];
 

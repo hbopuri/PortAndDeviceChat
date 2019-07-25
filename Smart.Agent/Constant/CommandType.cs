@@ -20,5 +20,6 @@
         public const int JustCollect = 16;
         public const int Connect = 0;
         public const int SetAx = 17;
+        public const int MemsTest = 18;
     }
 }

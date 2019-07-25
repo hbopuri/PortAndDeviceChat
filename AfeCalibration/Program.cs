@@ -26,6 +26,8 @@ namespace AfeCalibration
         private static int _strainIncDecInterval = 3;
         private static DataPortConfig _readDataPortConfig;
         private static string filePath = $"{AppDomain.CurrentDomain.BaseDirectory}Balancing.json";
+        private static DataPortConfig _defaultDataPortConfig;
+
         [STAThread]
         // ReSharper disable once UnusedParameter.Local
         static async Task Main(string[] args)
@@ -64,6 +66,12 @@ namespace AfeCalibration
                                   SmartLog.WriteLine(!string.IsNullOrWhiteSpace(o.Command)
                                      ? $"Entered Command. Current Arguments: --cmd {o.Command.ToUpper()}"
                                      : $"No Command passed. Current Arguments: --cmd");
+                                  SmartLog.WriteLine(
+                                    $"MemsTestCycle={o.MemsTestCycle}. Current Arguments: --memsCycle");
+                                  SmartLog.WriteLine(
+                                   $"MemsTestMin={o.MemsTestMin}. Current Arguments: --memsMin");
+                                  SmartLog.WriteLine(
+                                  $"MemsTestMax={o.MemsTestMax}. Current Arguments: --memsMax");
                               });
             }
             catch (Exception exception)
@@ -80,6 +88,20 @@ namespace AfeCalibration
                         BoardId = args[0],
                         Model = Convert.ToInt32(args[1]),
                     };
+                    if(_options.Model == 1 &&  args[2] != null)
+                    {
+                        try
+                        {
+                            var mems = args[2].Split('-');
+                            _options.MemsTestCycle = Convert.ToInt32(mems[0]);
+                            _options.MemsTestMin = Convert.ToInt32(mems[1]);
+                            _options.MemsTestMax = Convert.ToInt32(mems[2]);
+                        }
+                        catch (Exception exception)
+                        {
+                            SmartLog.WriteErrorLine($"{exception.Message}");
+                        }
+                    }
                 }
             }
           
@@ -99,7 +121,7 @@ namespace AfeCalibration
                 return;
             GetBoardId();
             Console.WriteLine();
-            DataPortConfig defaultDataPortConfig = _smartPort.GetDefaultDataPortConfig();
+            _defaultDataPortConfig = _smartPort.GetDefaultDataPortConfig();
             await _smartPort.Init(_boardId, _defaultComPort, _options);
             if (!_smartPort.Start())
                 return;
@@ -122,6 +144,12 @@ namespace AfeCalibration
                                 $"{sensor.Afe} ({sensor.Data.Count} samples): {sensor.Type}:{Math.Truncate(sensor.Data.Average(x => x.Value))}," +
                                 $" Quantized: {quantized}");
                         }
+                    }
+                    else if (command == CommandType.MemsTest)
+                    {
+                        SmartLog.WriteHighlight($"Make sure Power Off, Power ON, IF and Connect are done before this");
+                        _readDataPortConfig = _smartPort.ReadDataPortConfig();
+                        MemsTest();
                     }
                     else
                         _smartPort.Go(menuOption: command).Wait();
@@ -170,8 +198,10 @@ namespace AfeCalibration
                                     //var values = sensors.Where(x => _isTip ? x.Afe == Afe.Tip : x.Afe == Afe.Top)
                                     //    .Select(x => x.Data.Select(d => BitConverter.ToUInt16(d.Bytes, 0)).Average(a => a)).Select(x => Math.Truncate(x)).ToList();
 
+
                                     await AdjustStrain(_readDataPortConfig, sensors);
-                                    await AdjustAx(_readDataPortConfig, sensors);
+                                    if(_options.Model == 1)
+                                        await AdjustAx(_readDataPortConfig, sensors);
                                 }
 
                                 break;
@@ -181,7 +211,7 @@ namespace AfeCalibration
                                 if (portTask.Result.ReturnObject != null)
                                 {
                                     var dataPortConfig = ((DataPortConfig)portTask.Result.ReturnObject);
-                                    CompareDataPortConfig(dataPortConfig, defaultDataPortConfig);
+                                    CompareDataPortConfig(dataPortConfig, _defaultDataPortConfig);
                                 }
 
                                 break;
@@ -262,7 +292,7 @@ namespace AfeCalibration
                         switch (_options.Model)
                         {
                             case 2:
-                                axSensors = ((List<Sensor>) portTask.Result.ReturnObject).Skip(2).Take(2)
+                                axSensors = ((List<Sensor>)portTask.Result.ReturnObject).Skip(2).Take(2)
                                     .Where(x => x.Type == SensorType.Accelerometer).ToList();
                                 break;
                             case 1 when _isTip:
@@ -344,8 +374,154 @@ namespace AfeCalibration
                     }
                 }
                 Balanced(SensorType.Accelerometer);
+                MemsTest();
             }
         }
+
+        private static void MemsTest()
+        {
+            _defaultDataPortConfig.ModeFlag = new byte[] { 0x41 };
+            _smartPort.WriteDataPortConfig(_boardId, _readDataPortConfig, _defaultDataPortConfig);
+            List<Sensor> axSensors = new List<Sensor>();
+            Task<LoopResponse> portTask;
+            var testPassed = false;
+            var completeCycleQuantz = new List<List<double>>();
+            for (int i = 0; i < _options.MemsTestCycle; i++)
+            {
+                var cycleQuantz = new List<double>();
+                portTask = _smartPort.Go(menuOption: CommandType.Collect);
+                switch (_options.Model)
+                {
+                    case 2:
+                        axSensors = ((List<Sensor>)portTask.Result.ReturnObject).Skip(2).Take(2)
+                            .Where(x => x.Type == SensorType.Accelerometer).ToList();
+                        break;
+                    case 1 when _isTip:
+                        axSensors = ((List<Sensor>)portTask.Result.ReturnObject).Skip(2).Take(2)
+                            .Where(x => x.Type == SensorType.Accelerometer).ToList();
+                        break;
+                    default:
+                        axSensors = ((List<Sensor>)portTask.Result.ReturnObject).Skip(0).Take(2)
+                            .Where(x => x.Type == SensorType.Accelerometer).ToList();
+                        break;
+                }
+                foreach (var sensor in axSensors.Where(x => _isTip ? x.Afe == Afe.Tip : x.Afe == Afe.Top))
+                {
+                    //var quantized = Math.Truncate(sensor.Data.Select(x => BitConverter.ToUInt16(x.Bytes, 0)).Average(x => x));
+                    //var nonQuantized = Math.Truncate(sensor.Data.Average(x => x.Value));
+                    //foreach (var item in sensor.Data)
+                    //{
+                    //    var quantized = BitConverter.ToUInt16(item.Bytes, 0);
+                    //    var nonQuantized = Math.Truncate(item.Value);
+                    //    SmartLog.WriteLine(
+                    //        $"{sensor.Afe} ({sensor.Data.Count} samples): {sensor.Type}:{nonQuantized}," +
+                    //        $" Quantized: {quantized}");
+                    //    cycleQuantz.Add(quantized);
+                    //}
+                    var allQuants = sensor.Data.Select(x => BitConverter.ToUInt16(x.Bytes, 0)).ToList();
+                    var thisMin = Math.Truncate(allQuants.OrderBy(x => x).Take(20).Average(x=>x));
+                    var thisMax = allQuants.OrderBy(x => x).Skip(20).Average(x => x);
+
+                    cycleQuantz.Add(thisMin);
+                    cycleQuantz.Add(thisMax);
+
+                    //foreach (var item in )
+                    //{
+                    //    var quantized = BitConverter.ToUInt16(item.Bytes, 0);
+                    //    var nonQuantized = Math.Truncate(item.Value);
+                    //    SmartLog.WriteLine(
+                    //        $"{sensor.Afe} ({sensor.Data.Count} samples): {sensor.Type}:{nonQuantized}," +
+                    //        $" Quantized: {quantized}");
+                    //    cycleQuantz.Add(quantized);
+                    //}
+                }
+                completeCycleQuantz.Add(cycleQuantz);
+            }
+            var min = completeCycleQuantz.Min(x => x.Min());
+            var max = completeCycleQuantz.Max(x => x.Max());
+            if (_options.MemsTestMin >= (max - min)
+                && _options.MemsTestMax <= (max - min))
+            {
+                testPassed = true;
+            }
+            if (!testPassed)
+                SmartLog.WriteErrorLine($"Mems Test Failed: Desired Range {_options.MemsTestMin}-{_options.MemsTestMax}, actual value:{max - min}");
+            else
+                SmartLog.WriteHighlight($"Mems Test PASSED: Desired Range {_options.MemsTestMin}-{_options.MemsTestMax}, actual value:{max - min}");
+
+            if (!File.Exists(filePath))
+            {
+                File.Create(filePath).Close();
+            }
+            var data = File.ReadAllText(filePath);
+            var balancingData = !string.IsNullOrWhiteSpace(data)
+                     ? JsonConvert.DeserializeObject<BalanceSensor>(data)
+                     : new BalanceSensor();
+            if (_isTip)
+            {
+                if (_readDataPortConfig.SensorChannels[2].Type.ToDecimal(0) == (int)SensorType.StrainGauge)
+                {
+                    balancingData.ChannelOne.ChannelName = SensorType.StrainGauge.ToString();
+                }
+                else
+                {
+                    balancingData.ChannelOne.ChannelName = SensorType.Accelerometer.ToString();
+                }
+                if (_readDataPortConfig.SensorChannels[3].Type.ToDecimal(0) == (int)SensorType.StrainGauge)
+                {
+                    balancingData.ChannelTwo.ChannelName = SensorType.StrainGauge.ToString();
+                }
+                else
+                {
+                    balancingData.ChannelTwo.ChannelName = SensorType.Accelerometer.ToString();
+                }
+            }
+            else
+            {
+                if (_readDataPortConfig.SensorChannels[0].Type.ToDecimal(0) == (int)SensorType.StrainGauge)
+                {
+                    balancingData.ChannelOne.ChannelName = SensorType.StrainGauge.ToString();
+                }
+                else
+                {
+                    balancingData.ChannelOne.ChannelName = SensorType.Accelerometer.ToString();
+                }
+                if (_readDataPortConfig.SensorChannels[1].Type.ToDecimal(0) == (int)SensorType.StrainGauge)
+                {
+                    balancingData.ChannelTwo.ChannelName = SensorType.StrainGauge.ToString();
+                }
+                else
+                {
+                    balancingData.ChannelTwo.ChannelName = SensorType.Accelerometer.ToString();
+                }
+            }
+            if (balancingData.ChannelOne.ChannelName == SensorType.Accelerometer.ToString())
+            {
+                completeCycleQuantz.ForEach(x =>
+                {
+                    var testIteration = new TestIteration();
+                    testIteration.Reading.Add(x.Min());
+                    testIteration.Reading.Add(x.Max());
+                    balancingData.ChannelOne.MemsTest.TestIteration.Add(testIteration);
+                });
+            }
+            if (balancingData.ChannelTwo.ChannelName == SensorType.Accelerometer.ToString())
+            {
+                completeCycleQuantz.ForEach(x =>
+                {
+                    var testIteration = new TestIteration();
+                    testIteration.Reading.Add(x.Min());
+                    testIteration.Reading.Add(x.Max());
+                    balancingData.ChannelTwo.MemsTest.TestIteration.Add(testIteration);
+                });
+            }
+
+            var balancingInString = JsonConvert.SerializeObject(balancingData);
+            File.WriteAllText(filePath, balancingInString);
+            _defaultDataPortConfig.ModeFlag = new byte[] { 0x42 };
+            _smartPort.WriteDataPortConfig(_boardId, _readDataPortConfig, _defaultDataPortConfig);
+        }
+
         private static async Task AdjustStrain(DataPortConfig readDataPortConfig, List<Sensor> sensors)
         {
             if (readDataPortConfig.SensorChannels.Any(x =>
@@ -470,7 +646,7 @@ namespace AfeCalibration
                         PrintCollectResponse(strainSensors, SensorType.StrainGauge);
                     }
                 }
-
+               
                 Balanced(SensorType.StrainGauge);
             }
         }

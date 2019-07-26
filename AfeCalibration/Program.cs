@@ -418,9 +418,9 @@ namespace AfeCalibration
                     {
                         var quantized = BitConverter.ToUInt16(item.Bytes, 0);
                         var nonQuantized = Math.Truncate(item.Value);
-                        SmartLog.WriteLine(
-                            $"{sensor.Afe} ({sensor.Data.Count} samples): {sensor.Type}:{nonQuantized}," +
-                            $" Quantized: {quantized}");
+                        //SmartLog.WriteLine(
+                        //    $"{sensor.Afe} ({sensor.Data.Count} samples): {sensor.Type}:{nonQuantized}," +
+                        //    $" Quantized: {quantized}");
                         cycleQuantz.Add(quantized);
                     }
                     //var allQuants = sensor.Data.Select(x => BitConverter.ToUInt16(x.Bytes, 0)).ToList();
@@ -432,8 +432,8 @@ namespace AfeCalibration
             }
             var min = completeCycleQuantz.Min(x => x.Min());
             var max = completeCycleQuantz.Max(x => x.Max());
-            if (_options.MemsTestMin >= (max - min)
-                && _options.MemsTestMax <= (max - min))
+            if (_options.MemsTestMin <= (max - min)
+                && _options.MemsTestMax >= (max - min))
             {
                 testPassed = true;
             }

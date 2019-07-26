@@ -1206,11 +1206,11 @@ namespace Smart.Agent.Business
 
             complete[1] = (complete.Length).ToString("X").ToByteArray()[0];
 
-            var firstCheckSum = received.CompleteResponseBuffer.Skip(12).Take(received.CompleteResponseBuffer.Length - 12).ToArray().ToHex().Replace(" ","").ToByteArray();
+            var firstCheckSum = received.CompleteResponseBuffer.Skip(12).Take(received.CompleteResponseBuffer.Length - 15).ToArray().CheckSumArray();
             complete[complete.Length - 3] = firstCheckSum[0];
             complete[complete.Length - 2] = firstCheckSum[1];
 
-            Array.Resize<byte>(ref complete, complete.Length + 1);
+            //Array.Resize<byte>(ref complete, complete.Length + 1);
 
             complete[complete.Length - 1] = complete.Skip(2).Take(complete.Length - 1).ToArray().CheckSum();
 

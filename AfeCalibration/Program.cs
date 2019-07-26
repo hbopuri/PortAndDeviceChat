@@ -147,6 +147,9 @@ namespace AfeCalibration
                     }
                     else if (command == CommandType.MemsTest)
                     {
+                        _smartPort.Go(menuOption: CommandType.PowerOff).Wait();
+                        _smartPort.Go(menuOption: CommandType.PowerOn).Wait();
+                        _smartPort.Go(menuOption: CommandType.Connect).Wait();
                         SmartLog.WriteHighlight($"Make sure Power Off, Power ON, IF and Connect are done before this");
                         _readDataPortConfig = _smartPort.ReadDataPortConfig();
                         MemsTest();
@@ -405,35 +408,25 @@ namespace AfeCalibration
                             .Where(x => x.Type == SensorType.Accelerometer).ToList();
                         break;
                 }
+                if (i < 2)
+                    continue;
                 foreach (var sensor in axSensors.Where(x => _isTip ? x.Afe == Afe.Tip : x.Afe == Afe.Top))
                 {
                     //var quantized = Math.Truncate(sensor.Data.Select(x => BitConverter.ToUInt16(x.Bytes, 0)).Average(x => x));
                     //var nonQuantized = Math.Truncate(sensor.Data.Average(x => x.Value));
-                    //foreach (var item in sensor.Data)
-                    //{
-                    //    var quantized = BitConverter.ToUInt16(item.Bytes, 0);
-                    //    var nonQuantized = Math.Truncate(item.Value);
-                    //    SmartLog.WriteLine(
-                    //        $"{sensor.Afe} ({sensor.Data.Count} samples): {sensor.Type}:{nonQuantized}," +
-                    //        $" Quantized: {quantized}");
-                    //    cycleQuantz.Add(quantized);
-                    //}
-                    var allQuants = sensor.Data.Select(x => BitConverter.ToUInt16(x.Bytes, 0)).ToList();
-                    var thisMin = Math.Truncate(allQuants.OrderBy(x => x).Take(20).Average(x=>x));
-                    var thisMax = allQuants.OrderBy(x => x).Skip(20).Average(x => x);
-
-                    cycleQuantz.Add(thisMin);
-                    cycleQuantz.Add(thisMax);
-
-                    //foreach (var item in )
-                    //{
-                    //    var quantized = BitConverter.ToUInt16(item.Bytes, 0);
-                    //    var nonQuantized = Math.Truncate(item.Value);
-                    //    SmartLog.WriteLine(
-                    //        $"{sensor.Afe} ({sensor.Data.Count} samples): {sensor.Type}:{nonQuantized}," +
-                    //        $" Quantized: {quantized}");
-                    //    cycleQuantz.Add(quantized);
-                    //}
+                    foreach (var item in sensor.Data)
+                    {
+                        var quantized = BitConverter.ToUInt16(item.Bytes, 0);
+                        var nonQuantized = Math.Truncate(item.Value);
+                        SmartLog.WriteLine(
+                            $"{sensor.Afe} ({sensor.Data.Count} samples): {sensor.Type}:{nonQuantized}," +
+                            $" Quantized: {quantized}");
+                        cycleQuantz.Add(quantized);
+                    }
+                    //var allQuants = sensor.Data.Select(x => BitConverter.ToUInt16(x.Bytes, 0)).ToList();
+                    //var thisMin = Math.Truncate(allQuants.OrderBy(x => x).Take(20).Average(x=>x));
+                    //var thisMax = Math.Truncate(allQuants.OrderBy(x => x).Skip(20).Average(x => x));
+                   
                 }
                 completeCycleQuantz.Add(cycleQuantz);
             }

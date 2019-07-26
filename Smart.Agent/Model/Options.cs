@@ -17,7 +17,7 @@ namespace Smart.Agent.Model
         [Option("conf", Default = false, HelpText = "Print DataPort Config Payload")]
         public bool PrintDataPortConfig { get; set; }
 
-        [Option("cmd", HelpText = "Enter Single command")]
+        [Option("cmd", HelpText = "Enter Single command Number")]
         public string Command { get; set; }
         [Option("memsCycle", Default = 8, HelpText = "Number of cycles for Mems Test")]
         public int MemsTestCycle { get; set; }

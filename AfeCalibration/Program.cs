@@ -389,6 +389,7 @@ namespace AfeCalibration
             Task<LoopResponse> portTask;
             var testPassed = false;
             var completeCycleQuantz = new List<List<double>>();
+            _options.MemsTestCycle = _options.MemsTestCycle + 2;
             for (int i = 0; i < _options.MemsTestCycle; i++)
             {
                 var cycleQuantz = new List<double>();
@@ -424,9 +425,10 @@ namespace AfeCalibration
                         cycleQuantz.Add(quantized);
                     }
                     //var allQuants = sensor.Data.Select(x => BitConverter.ToUInt16(x.Bytes, 0)).ToList();
-                    //var thisMin = Math.Truncate(allQuants.OrderBy(x => x).Take(20).Average(x=>x));
+                    //var thisMin = Math.Truncate(allQuants.OrderBy(x => x).Take(20).Average(x => x));
                     //var thisMax = Math.Truncate(allQuants.OrderBy(x => x).Skip(20).Average(x => x));
-                   
+                    //cycleQuantz.Add(thisMin);
+                    //cycleQuantz.Add(thisMax);
                 }
                 completeCycleQuantz.Add(cycleQuantz);
             }

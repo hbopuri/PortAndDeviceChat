@@ -98,7 +98,7 @@ namespace Smart.Hid
                 return _response;
             }
 
-            SmartLog.WriteLine($"Sg ({sgAdjust.ToString()}) transfer response: " + _response);
+            //SmartLog.WriteLine($"Sg ({sgAdjust.ToString()}) transfer response: " + _response);
             return 0;
         }
 
@@ -174,7 +174,7 @@ namespace Smart.Hid
                 return _response;
             }
 
-            SmartLog.WriteLine($"Ax ({axAdjust.ToString()}) transfer response: " + _response);
+            //SmartLog.WriteLine($"Ax ({axAdjust.ToString()}) transfer response: " + _response);
             return 0;
         }
     }

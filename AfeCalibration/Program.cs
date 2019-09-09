@@ -159,8 +159,9 @@ namespace AfeCalibration
                     return;
                 }
                 _readDataPortConfig = _smartPort.ReadDataPortConfig();
-                if(_readDataPortConfig.SensorChannels[2].Active.ToDecimal(0) == 01
-                    && _readDataPortConfig.SensorChannels[3].Active.ToDecimal(0) == 01)
+                // && _readDataPortConfig.SensorChannels[2].Active.ToDecimal(0) == 01
+                //    && _readDataPortConfig.SensorChannels[3].Active.ToDecimal(0) == 01
+                if (_readDataPortConfig.SensorChannels.Count >2 )
                 {
                     _isTip = true;
                 }
@@ -256,7 +257,9 @@ namespace AfeCalibration
                 {
                     var accelValue = axSensors.Select(s =>
                            Math.Truncate(s.Data.Select(x => Convert.ToInt16(BitConverter.ToUInt16(x.Bytes, 0)))
-                               .Average(b => b))).First();
+                               .Average(b => b))).FirstOrDefault();
+                    //var accelValue = axSensors.Select(s =>
+                    //       Math.Truncate(s.Data.Average(x=>x.Value))).FirstOrDefault();
 
                     Task<LoopResponse> portTask;
                     //while (axSensors.Select(s => Math.Truncate(s.Data.Average(x => x.Value)))
@@ -267,7 +270,9 @@ namespace AfeCalibration
 
 
                         var loopCount = (AxRange.Min - Convert.ToInt32(accelValue)) / _accelIncDecInterval;
-                        var reminder = AxRange.Min % Convert.ToInt32(accelValue);
+                        var reminder = accelValue == 0 
+                            ? 0 
+                            : AxRange.Min % Convert.ToInt32(accelValue);
                         if (reminder > 0)
                             loopCount++;
                         bool singleIncrement = false;
@@ -531,28 +536,39 @@ namespace AfeCalibration
                 {
                     //while (strainSensors.Select(s => Math.Truncate(s.Data.Average(x => x.Value)))
                     //    .All(x => x < StrainRange.Min))
+
                     var strainValues = strainSensors.Select(s =>
                             Math.Truncate(s.Data.Select(x => Convert.ToInt16(BitConverter.ToUInt16(x.Bytes, 0)))
                                 .Average(b => b))).ToList();
+                    //var strainValues = strainSensors.Select(s =>
+                    //      Math.Truncate(s.Data.Average(x => x.Value))).ToList();
 
                     Task <LoopResponse> portTask;
                     if (strainValues.All(x=>x < StrainRange.Min))
                     {
+                        var maxStrain = strainValues.Any()
+                            ? strainValues.Max()
+                            : 0;
                         saveRequire = true;
-                        var loopCount = ((StrainRange.Min - 50) - Convert.ToInt32(strainValues.Max())) / _strainIncDecInterval;
-                        var reminder = (StrainRange.Min - 50) % Convert.ToInt32(strainValues.Max());
+                        var loopCount = ((StrainRange.Min - 50) - Convert.ToInt32(maxStrain)) / _strainIncDecInterval;
+                        var reminder = maxStrain == 0 
+                            ? 0 
+                            :(StrainRange.Min - 50) % Convert.ToInt32(maxStrain);
+                      
                         if (reminder > 0)
                             loopCount++;
                         bool singleIncrement = false;
-                        if (Math.Abs(StrainRange.Min - Convert.ToInt32(strainValues.Max())) <= _strainIncDecInterval
-                            || Math.Abs(StrainRange.Max - Convert.ToInt32(strainValues.Max())) <= _strainIncDecInterval)
+                        if (Math.Abs(StrainRange.Min - Convert.ToInt32(maxStrain)) <= _strainIncDecInterval
+                            || Math.Abs(StrainRange.Max - Convert.ToInt32(maxStrain)) <= _strainIncDecInterval)
                             singleIncrement = true;
 
                         if (loopCount > 0 && !singleIncrement)
                         {
                             while (loopCount > 0)
                             {
-                                _smartPort.Go(menuOption: CommandType.IncrementSg).Wait();
+                               var response =  _smartPort.Go(menuOption: CommandType.IncrementSg).Result;
+                                if ((int)response.ReturnObject != 0)
+                                    break;
                                 loopCount--;
                             }
                         }
@@ -563,8 +579,12 @@ namespace AfeCalibration
                         portTask = _smartPort.Go(menuOption: CommandType.Collect);
                         switch (_options.Model)
                         {
-                            case 2:
+                            case 2 when _isTip:
                                 strainSensors = ((List<Sensor>)portTask.Result.ReturnObject).Skip(2).Take(2)
+                                    .Where(x => x.Type == SensorType.StrainGauge).ToList();
+                                break;
+                            case 2 when !_isTip:
+                                strainSensors = ((List<Sensor>)portTask.Result.ReturnObject).Skip(0).Take(2)
                                     .Where(x => x.Type == SensorType.StrainGauge).ToList();
                                 break;
                             case 1 when _isTip:
@@ -583,14 +603,18 @@ namespace AfeCalibration
                     //    .All(x => x > StrainRange.Max))
                     if (strainValues.All(x => x > StrainRange.Max))
                     {
+                        var maxStrain = strainValues.Any()
+                            ? strainValues.Max()
+                            : 0;
+
                         saveRequire = true;
-                        var loopCount = (Convert.ToInt32(strainValues.Max()) - (StrainRange.Max-50)) / _strainIncDecInterval;
-                        var reminder = Convert.ToInt32(strainValues.Max()) % (StrainRange.Max - 50);
+                        var loopCount = (Convert.ToInt32(maxStrain) - (StrainRange.Max-50)) / _strainIncDecInterval;
+                        var reminder = Convert.ToInt32(maxStrain) % (StrainRange.Max - 50);
                         if (reminder > 0)
                             loopCount++;
                         bool singleIncrement = false;
-                        if (Math.Abs(StrainRange.Min - Convert.ToInt32(strainValues.Max())) <= _strainIncDecInterval
-                            || Math.Abs(StrainRange.Max - Convert.ToInt32(strainValues.Max())) <= _strainIncDecInterval)
+                        if (Math.Abs(StrainRange.Min - Convert.ToInt32(maxStrain)) <= _strainIncDecInterval
+                            || Math.Abs(StrainRange.Max - Convert.ToInt32(maxStrain)) <= _strainIncDecInterval)
                             singleIncrement = true;
 
                         if (loopCount > 0 && !singleIncrement)
@@ -668,7 +692,9 @@ namespace AfeCalibration
         {
             ConsoleColor borderColor = ConsoleColor.Yellow;
             Console.ForegroundColor = borderColor;          
-            foreach (var sensor in sensors.Where(x=> _isTip ? x.Afe == Afe.Tip : x.Afe == Afe.Top))
+            foreach (var sensor in sensors
+                .Where(x=> x.Afe == (_isTip ? Afe.Tip : Afe.Top)
+                && (type == SensorType.Both ||  x.Type == type)))
             {
                 var quantized = Math.Truncate(sensor.Data.Select(x => BitConverter.ToUInt16(x.Bytes, 0)).Average(x => x));
                 SmartLog.WriteLine(

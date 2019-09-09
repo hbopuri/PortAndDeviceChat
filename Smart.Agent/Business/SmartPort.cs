@@ -794,7 +794,7 @@ namespace Smart.Agent.Business
 
         public async Task<LoopResponse> Go(int menuOption)
         {
-            SmartLog.WriteLine();
+            //SmartLog.WriteLine();
             var loopResponse = new LoopResponse {Selection = menuOption};
             switch (menuOption)
             {
@@ -865,7 +865,7 @@ namespace Smart.Agent.Business
                 case CommandType.IncrementSg:
                     try
                     {
-                        await UsbToSpiConverter.IncrementOrDecrementStrain(SgAdjust.Increment);
+                        loopResponse.ReturnObject = await UsbToSpiConverter.IncrementOrDecrementStrain(SgAdjust.Increment);
                         //loopResponse.ReturnObject = Collect();
                     }
                     catch (Exception ex)
@@ -878,7 +878,7 @@ namespace Smart.Agent.Business
                 case CommandType.DecrementSg:
                     try
                     {
-                        await UsbToSpiConverter.IncrementOrDecrementStrain(SgAdjust.Decrement);
+                        loopResponse.ReturnObject = await UsbToSpiConverter.IncrementOrDecrementStrain(SgAdjust.Decrement);
                         // loopResponse.ReturnObject = Collect();
                     }
                     catch (Exception ex)
@@ -891,7 +891,7 @@ namespace Smart.Agent.Business
                 case CommandType.MinAx:
                     try
                     {
-                        await UsbToSpiConverter.IncrementOrDecrementAx(AxAdjust.Min);
+                        loopResponse.ReturnObject = await UsbToSpiConverter.IncrementOrDecrementAx(AxAdjust.Min);
                         //loopResponse.ReturnObject = Collect();
                     }
                     catch (Exception ex)
@@ -904,7 +904,7 @@ namespace Smart.Agent.Business
                 case CommandType.MidAx:
                     try
                     {
-                        await UsbToSpiConverter.IncrementOrDecrementAx(AxAdjust.Mid);
+                        loopResponse.ReturnObject = await UsbToSpiConverter.IncrementOrDecrementAx(AxAdjust.Mid);
                         //loopResponse.ReturnObject = Collect();
                     }
                     catch (Exception ex)
@@ -917,7 +917,7 @@ namespace Smart.Agent.Business
                 case CommandType.MaxAx:
                     try
                     {
-                        await UsbToSpiConverter.IncrementOrDecrementAx(AxAdjust.Max);
+                        loopResponse.ReturnObject = await UsbToSpiConverter.IncrementOrDecrementAx(AxAdjust.Max);
                         //loopResponse.ReturnObject = Collect();
                     }
                     catch (Exception ex)
@@ -930,7 +930,7 @@ namespace Smart.Agent.Business
                 case CommandType.SetAx:
                     try
                     {
-                        await UsbToSpiConverter.IncrementOrDecrementAx(AxAdjust.ToDesiredRange);
+                        loopResponse.ReturnObject = await UsbToSpiConverter.IncrementOrDecrementAx(AxAdjust.ToDesiredRange);
                     }
                     catch (Exception ex)
                     {
@@ -941,7 +941,7 @@ namespace Smart.Agent.Business
                 case CommandType.SaveAx:
                     try
                     {
-                        await UsbToSpiConverter.IncrementOrDecrementAx(AxAdjust.Save);
+                        loopResponse.ReturnObject = await UsbToSpiConverter.IncrementOrDecrementAx(AxAdjust.Save);
                     }
                     catch (Exception ex)
                     {
@@ -953,7 +953,7 @@ namespace Smart.Agent.Business
                 case CommandType.SaveSg:
                     try
                     {
-                        await UsbToSpiConverter.IncrementOrDecrementStrain(SgAdjust.Save);
+                        loopResponse.ReturnObject = await UsbToSpiConverter.IncrementOrDecrementStrain(SgAdjust.Save);
                         //loopResponse.ReturnObject = Collect();
                     }
                     catch (Exception ex)

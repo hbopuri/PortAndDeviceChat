@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using CommandLine;
 using Newtonsoft.Json;
@@ -63,6 +64,9 @@ namespace AfeCalibration
                                   SmartLog.WriteLine(o.Model == 1 || o.Model == 2
                                       ? $"Entered Model. Current Arguments: --mdl {o.Model + (o.Model == 1 ? ":Ax-Sg" : ":Sg-Sg")}"
                                       : $"No Model entered. Current Arguments: --mdl");
+                                  SmartLog.WriteLine(o.Position == 1 || o.Position == 2
+                                    ? $"Entered Top/Tip. Current Arguments: --pos {o.Position + (o.Position == 1 ? ":Top" : ":Tip")}"
+                                    : $"No Top/Tip entered. Current Arguments: --pos");
                                   SmartLog.WriteLine(!string.IsNullOrWhiteSpace(o.Command)
                                      ? $"Entered Command. Current Arguments: --cmd {o.Command.ToUpper()}"
                                      : $"No Command passed. Current Arguments: --cmd");
@@ -87,8 +91,9 @@ namespace AfeCalibration
                     {
                         BoardId = args[0],
                         Model = Convert.ToInt32(args[1]),
+                        Position = Convert.ToInt32(args[2])
                     };
-                    if(_options.Model == 1 &&  args[2] != null)
+                    if(_options.Model == 1 &&  args[3] != null)
                     {
                         try
                         {
@@ -159,12 +164,13 @@ namespace AfeCalibration
                     return;
                 }
                 _readDataPortConfig = _smartPort.ReadDataPortConfig();
+                _isTip = _options.Position == 2;
                 // && _readDataPortConfig.SensorChannels[2].Active.ToDecimal(0) == 01
                 //    && _readDataPortConfig.SensorChannels[3].Active.ToDecimal(0) == 01
-                if (_readDataPortConfig.SensorChannels.Count >2 )
-                {
-                    _isTip = true;
-                }
+                //if (_readDataPortConfig.SensorChannels.Count >2 )
+                //{
+                //    _isTip = true;
+                //}
                 //CompareDataPortConfig(readDataPortConfig, defaultDataPortConfig);
                 var portTask = _smartPort.Go(menuOption: CommandType.Collect);
                 while (portTask.Result.Selection != CommandType.Exit)
@@ -176,6 +182,7 @@ namespace AfeCalibration
                                 if (portTask.Result.ReturnObject != null)
                                 {
                                     var sensors = ((List<Sensor>)portTask.Result.ReturnObject);
+                                    TipOrTop(sensors);
                                     PrintCollectResponse(sensors, SensorType.Both);
                                 }
                                 break;
@@ -185,6 +192,20 @@ namespace AfeCalibration
                                 if (portTask.Result.ReturnObject != null)
                                 {
                                     var sensors = ((List<Sensor>)portTask.Result.ReturnObject);
+                                    TipOrTop(sensors);
+                                    int maxRetry = 0;
+                                    while (!sensors.Any() && maxRetry < 10)
+                                    {
+                                        portTask = _smartPort.Go(menuOption: CommandType.Collect);
+                                        sensors = ((List<Sensor>)portTask.Result.ReturnObject);
+                                        Thread.Sleep(TimeSpan.FromSeconds(3));
+                                        maxRetry++;
+                                    }
+                                    if (maxRetry == 10)
+                                    {
+                                        SmartLog.WriteErrorLine("Faield to Receive Collect Resposne");
+                                        break;
+                                    }
                                     //if (sensors[1].Data != null && sensors[1].Data.Any())
                                     //{
                                     //    var channelThreeQuantized =
@@ -244,6 +265,31 @@ namespace AfeCalibration
 
             //_smartPort.PowerOff();
         }
+
+        private static void TipOrTop(List<Sensor> sensors)
+        {
+            //if (!sensors.Any())
+            //{
+            //    return;
+            //}
+            //if(sensors.Count > 2)
+            //{
+            //    var sensorThree = Math.Truncate(sensors[3].Data.Average(x => x.Value));
+            //    if(sensorThree >= 300 && sensorThree <= 3800)
+            //    {
+            //        _isTip = true;
+            //    }
+            //}
+            //else if(sensors.Count == 2)
+            //{
+            //    var sensorOne = Math.Truncate(sensors[1].Data.Average(x => x.Value));
+            //    if (sensorOne >= 300 && sensorOne <= 3800)
+            //    {
+            //        _isTip = false;
+            //    }
+            //}
+        }
+
         private static async Task AdjustAx(DataPortConfig readDataPortConfig, List<Sensor> sensors)
         {
             if (readDataPortConfig.SensorChannels.Any(x =>
@@ -691,31 +737,40 @@ namespace AfeCalibration
         private static void PrintCollectResponse(List<Sensor> sensors, SensorType type)
         {
             ConsoleColor borderColor = ConsoleColor.Yellow;
-            Console.ForegroundColor = borderColor;          
+            Console.ForegroundColor = borderColor;
+            //foreach (var sensor in sensors
+            //   .Where(x => (type == SensorType.Both || x.Type == type)))
+            //{
+            //    var quantized = Math.Truncate(sensor.Data.Select(x => BitConverter.ToUInt16(x.Bytes, 0)).Average(x => x));
+            //    SmartLog.WriteLine(
+            //        $"{sensor.Afe} ({sensor.Data.Count} samples): {sensor.Type}:{Math.Truncate(sensor.Data.Average(x => x.Value))}," +
+            //        $" Quantized: {quantized}");
+            //}
             foreach (var sensor in sensors
-                .Where(x=> x.Afe == (_isTip ? Afe.Tip : Afe.Top)
-                && (type == SensorType.Both ||  x.Type == type)))
+            .Where(x => x.Afe == (_isTip ? Afe.Tip : Afe.Top)
+            && (type == SensorType.Both || x.Type == type)))
             {
                 var quantized = Math.Truncate(sensor.Data.Select(x => BitConverter.ToUInt16(x.Bytes, 0)).Average(x => x));
                 SmartLog.WriteLine(
                     $"{sensor.Afe} ({sensor.Data.Count} samples): {sensor.Type}:{Math.Truncate(sensor.Data.Average(x => x.Value))}," +
                     $" Quantized: {quantized}");
-                
+
                 if (!File.Exists(filePath))
                 {
                     File.Create(filePath).Close();
                 }
                 var data = File.ReadAllText(filePath);
-               var balancingData = !string.IsNullOrWhiteSpace(data)
-                        ? JsonConvert.DeserializeObject<BalanceSensor>(data)
-                        : new BalanceSensor();
+                var balancingData = !string.IsNullOrWhiteSpace(data)
+                         ? JsonConvert.DeserializeObject<BalanceSensor>(data)
+                         : new BalanceSensor();
                 if (_isTip)
                 {
                     if (_readDataPortConfig.SensorChannels[2].Type.ToDecimal(0) == (int)SensorType.StrainGauge)
                     {
                         balancingData.ChannelOne.ChannelName = SensorType.StrainGauge.ToString();
                     }
-                    else{
+                    else
+                    {
                         balancingData.ChannelOne.ChannelName = SensorType.Accelerometer.ToString();
                     }
                     if (_readDataPortConfig.SensorChannels[3].Type.ToDecimal(0) == (int)SensorType.StrainGauge)
@@ -746,11 +801,11 @@ namespace AfeCalibration
                         balancingData.ChannelTwo.ChannelName = SensorType.Accelerometer.ToString();
                     }
                 }
-                if(balancingData.ChannelOne.ChannelName == type.ToString())
+                if (balancingData.ChannelOne.ChannelName == type.ToString())
                     balancingData.ChannelOne.Reading.Add(quantized);
                 if (balancingData.ChannelTwo.ChannelName == type.ToString())
                     balancingData.ChannelTwo.Reading.Add(quantized);
-                if(type.ToString() == SensorType.Both.ToString())
+                if (type.ToString() == SensorType.Both.ToString())
                 {
                     //if(balancingData.ChannelOne.ChannelName == sensor.Type.ToString())
                     //    balancingData.ChannelOne.Reading.Add(quantized);

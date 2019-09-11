@@ -9,6 +9,8 @@ namespace Smart.Agent.Model
         public string BoardId { get; set; }
         [Option("mdl", HelpText = "Enter Model 1 or 2", Default = 1)]
         public int Model { get; set; }
+        [Option("pos", HelpText = "Enter 1 for Top and 2 for Tip", Default = 1)]
+        public int Position { get; set; }
         [Option("req", Default = false, HelpText = "Print Request Command")]
         public bool PrintRequest { get; set; }
         //[Option('r', "Response", HelpText = "Print Response Payload")]

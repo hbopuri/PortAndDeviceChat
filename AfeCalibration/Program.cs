@@ -97,7 +97,7 @@ namespace AfeCalibration
                     {
                         try
                         {
-                            var mems = args[2].Split('-');
+                            var mems = args[3].Split('-');
                             _options.MemsTestCycle = Convert.ToInt32(mems[0]);
                             _options.MemsTestMin = Convert.ToInt32(mems[1]);
                             _options.MemsTestMax = Convert.ToInt32(mems[2]);
@@ -439,16 +439,12 @@ namespace AfeCalibration
                 portTask = _smartPort.Go(menuOption: CommandType.Collect);
                 switch (_options.Model)
                 {
-                    case 2:
-                        axSensors = ((List<Sensor>)portTask.Result.ReturnObject).Skip(2).Take(2)
-                            .Where(x => x.Type == SensorType.Accelerometer).ToList();
-                        break;
                     case 1 when _isTip:
                         axSensors = ((List<Sensor>)portTask.Result.ReturnObject).Skip(2).Take(2)
                             .Where(x => x.Type == SensorType.Accelerometer).ToList();
                         break;
-                    default:
-                        axSensors = ((List<Sensor>)portTask.Result.ReturnObject).Skip(0).Take(2)
+                    case 1 when !_isTip:
+                        axSensors = ((List<Sensor>)portTask.Result.ReturnObject).Take(2)
                             .Where(x => x.Type == SensorType.Accelerometer).ToList();
                         break;
                 }

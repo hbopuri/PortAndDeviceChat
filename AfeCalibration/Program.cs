@@ -471,8 +471,12 @@ namespace AfeCalibration
                 }
                 completeCycleQuantz.Add(cycleQuantz);
             }
-            var min = completeCycleQuantz.Min(x => x.Min());
-            var max = completeCycleQuantz.Max(x => x.Max());
+            var min = completeCycleQuantz != null && completeCycleQuantz.Any()
+                ? completeCycleQuantz.Min(x => x.Min())
+                : 0;
+            var max = completeCycleQuantz != null && completeCycleQuantz.Any()
+                ? completeCycleQuantz.Max(x => x.Max())
+                : 0;
             if (_options.MemsTestMin <= (max - min)
                 && _options.MemsTestMax >= (max - min))
             {

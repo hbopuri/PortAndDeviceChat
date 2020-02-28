@@ -432,7 +432,7 @@ namespace AfeCalibration
             Task<LoopResponse> portTask;
             var testPassed = false;
             var completeCycleQuantz = new List<List<double>>();
-            _options.MemsTestCycle = _options.MemsTestCycle + 2;
+            _options.MemsTestCycle += 2;
             for (int i = 0; i < _options.MemsTestCycle; i++)
             {
                 var cycleQuantz = new List<double>();
@@ -477,15 +477,27 @@ namespace AfeCalibration
             var max = completeCycleQuantz != null && completeCycleQuantz.Any()
                 ? completeCycleQuantz.Where(x => x != null).Max(x => x.Max())
                 : 0;
-            if (_options.MemsTestMin <= (max - min)
-                && _options.MemsTestMax >= (max - min))
+
+            if (min >= (AxRange.Min - _options.MemsTestMin) &&
+                min <= (AxRange.Max + _options.MemsTestMax) &&
+
+                max >= (AxRange.Min - _options.MemsTestMin) &&
+                max <= (AxRange.Max + _options.MemsTestMax))
             {
-                testPassed = true;
+                if (_options.MemsTestMin <= (max - min)
+                    && _options.MemsTestMax >= (max - min))
+                {
+                    testPassed = true;
+                }
+                if (!testPassed)
+                    SmartLog.WriteErrorLine($"Mems Test Failed: Desired Range {_options.MemsTestMin}-{_options.MemsTestMax}, actual value:{max - min}");
+                else
+                    SmartLog.WriteHighlight($"Mems Test PASSED: Desired Range {_options.MemsTestMin}-{_options.MemsTestMax}, actual value:{max - min}");
             }
-            if (!testPassed)
-                SmartLog.WriteErrorLine($"Mems Test Failed: Desired Range {_options.MemsTestMin}-{_options.MemsTestMax}, actual value:{max - min}");
             else
-                SmartLog.WriteHighlight($"Mems Test PASSED: Desired Range {_options.MemsTestMin}-{_options.MemsTestMax}, actual value:{max - min}");
+            {
+                SmartLog.WriteErrorLine($"Mems Test Failed: Ax Balance is out of range {min}-{max}. Please consider to rebalance this AFE");
+            }
 
             if (!File.Exists(filePath))
             {

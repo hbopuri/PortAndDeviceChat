@@ -17,6 +17,7 @@ namespace AfeCalibration
     public class MemsTest
     {
         public List<TestIteration> TestIteration { get; set; } = new List<TestIteration>();
+        public bool IsPass { get; set; }
     }
     public class TestIteration
     {

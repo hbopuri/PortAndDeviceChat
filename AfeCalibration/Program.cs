@@ -553,6 +553,7 @@ namespace AfeCalibration
                     testIteration.Reading.Add(x.Min());
                     testIteration.Reading.Add(x.Max());
                     balancingData.ChannelOne.MemsTest.TestIteration.Add(testIteration);
+                    balancingData.ChannelOne.MemsTest.IsPass = testPassed;
                 });
             }
             if (balancingData.ChannelTwo.ChannelName == SensorType.Accelerometer.ToString())
@@ -563,6 +564,7 @@ namespace AfeCalibration
                     testIteration.Reading.Add(x.Min());
                     testIteration.Reading.Add(x.Max());
                     balancingData.ChannelTwo.MemsTest.TestIteration.Add(testIteration);
+                    balancingData.ChannelOne.MemsTest.IsPass = testPassed;
                 });
             }
 

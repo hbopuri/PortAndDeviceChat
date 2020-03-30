@@ -225,8 +225,33 @@ namespace AfeCalibration
 
 
                                     await AdjustStrain(_readDataPortConfig, sensors);
-                                    if(_options.Model == 1)
+                                    _smartPort.Start();//Power Off, If, Power On, Connect
+                                    _readDataPortConfig = _smartPort.ReadDataPortConfig();
+                                    portTask = _smartPort.Go(menuOption: CommandType.Collect);
+                                    sensors = ((List<Sensor>)portTask.Result.ReturnObject);
+                                    var strainSensors = sensors.Where(x => x.Afe == (_isTip ? Afe.Tip : Afe.Top)
+                                    && x.Type == SensorType.StrainGauge).ToList();
+
+                                    if (strainSensors.Select(s => Math.Truncate(s.Data.Select(x =>
+                                    BitConverter.ToUInt16(x.Bytes, 0)).Average(x => x)))
+                                        .All(x => x <= StrainRange.Max)
+                                        && strainSensors.Select(s => Math.Truncate(s.Data.Select(x =>
+                                        BitConverter.ToUInt16(x.Bytes, 0)).Average(x => x)))
+                                        .All(x => x >= StrainRange.Min))
+                                    {
+                                        Balanced(SensorType.StrainGauge, true, true);
+                                        PrintCollectResponse(sensors, SensorType.StrainGauge);
+                                    }
+                                    else
+                                    {
+                                        Balanced(SensorType.StrainGauge, true, false);
+                                        return;
+                                    }
+
+
+                                    if (_options.Model == 1) {
                                         await AdjustAx(_readDataPortConfig, sensors);
+                                    }
                                 }
 
                                 break;
@@ -304,44 +329,12 @@ namespace AfeCalibration
                     var accelValue = axSensors.Select(s =>
                            Math.Truncate(s.Data.Select(x => Convert.ToInt16(BitConverter.ToUInt16(x.Bytes, 0)))
                                .Average(b => b))).FirstOrDefault();
-                    //var accelValue = axSensors.Select(s =>
-                    //       Math.Truncate(s.Data.Average(x=>x.Value))).FirstOrDefault();
-
                     Task<LoopResponse> portTask;
                     while (axSensors.Select(s => Math.Truncate(s.Data.Select(x => BitConverter.ToUInt16(x.Bytes, 0)).Average(x => x)))
                         .All(x => x < AxRange.Min))
-                    //if (accelValue < AxRange.Min)
                     {
                         saveRequire = true;
-
-
-                        //var loopCount = (AxRange.Min - Convert.ToInt32(accelValue)) / _accelIncDecInterval;
-                        //var reminder = accelValue == 0 
-                        //    ? 0 
-                        //    : AxRange.Min % Convert.ToInt32(accelValue);
-                        //if (reminder > 0)
-                        //    loopCount++;
-                        //bool singleIncrement = false;
-                        //if (Math.Abs(AxRange.Min - Convert.ToInt32(accelValue)) <= _accelIncDecInterval
-                        //    || Math.Abs(AxRange.Max - Convert.ToInt32(accelValue)) <= _accelIncDecInterval)
-                        //    singleIncrement = true;
-
-                        //if (loopCount > 0 && !singleIncrement)
-                        //{
-                        //    while (loopCount > 0)
-                        //    {
-                        //        _smartPort.Go(menuOption: CommandType.MinAx).Wait();
-                        //        loopCount--;
-                        //    }
-                        //}
-                        //else
-                        {
                             await _smartPort.Go(menuOption: CommandType.MinAx);
-                        }
-                        //if(Math.Abs(accelValue - AxRange.Min) > 10)
-                        //    await _smartPort.Go(menuOption: CommandType.SetAx);
-                        //else
-                        //    await _smartPort.Go(menuOption: CommandType.MinAx);
                         portTask = _smartPort.Go(menuOption: CommandType.Collect);
                         switch (_options.Model)
                         {
@@ -359,34 +352,9 @@ namespace AfeCalibration
 
                     while (axSensors.Select(s => Math.Truncate(s.Data.Select(x => BitConverter.ToUInt16(x.Bytes, 0)).Average(x => x)))
                         .All(x => x > AxRange.Max))
-                    //if (accelValue > AxRange.Max)
                     {
                         saveRequire = true;
-                        //var loopCount = (Convert.ToInt32(accelValue) - AxRange.Max) / _accelIncDecInterval;
-                        //var reminder = Convert.ToInt32(accelValue) % AxRange.Max;
-                        //if (reminder > 0)
-                        //    loopCount++;
-                        //bool singleIncrement = false;
-                        //if (Math.Abs(AxRange.Min - Convert.ToInt32(accelValue)) <= _accelIncDecInterval
-                        //    || Math.Abs(AxRange.Max - Convert.ToInt32(accelValue)) <= _accelIncDecInterval)
-                        //    singleIncrement = true;
-
-                        //if (loopCount > 0 && !singleIncrement)
-                        //{
-                        //    while (loopCount > 0)
-                        //    {
-                        //        _smartPort.Go(menuOption: CommandType.MaxAx).Wait();
-                        //        loopCount--;
-                        //    }
-                        //}
-                        //else
-                        {
-                            await _smartPort.Go(menuOption: CommandType.MaxAx);
-                        }
-                        //if (Math.Abs(accelValue - AxRange.Max) > 10)
-                        //    await _smartPort.Go(menuOption: CommandType.SetAx);
-                        //else
-                        //    await _smartPort.Go(menuOption: CommandType.MaxAx);
+                        await _smartPort.Go(menuOption: CommandType.MaxAx);
                         portTask = _smartPort.Go(menuOption: CommandType.Collect);
                         switch (_options.Model)
                         {
@@ -406,8 +374,6 @@ namespace AfeCalibration
                             .All(x => x <= AxRange.Max)
                         && axSensors.Select(s => Math.Truncate(s.Data.Select(x => BitConverter.ToUInt16(x.Bytes, 0)).Average(x => x)))
                             .All(x => x >= AxRange.Min))
-                    //if (accelValue <= AxRange.Max
-                    //    && accelValue >= AxRange.Min && saveRequire)
                     {
                         await _smartPort.Go(menuOption: CommandType.SaveAx);
                         PrintCollectResponse(axSensors, SensorType.Accelerometer);
@@ -419,7 +385,7 @@ namespace AfeCalibration
                         PrintCollectResponse(axSensors, SensorType.Accelerometer);
                     }
                 }
-                Balanced(SensorType.Accelerometer);
+                Balanced(SensorType.Accelerometer, false, false);
                 MemsTest();
             }
         }
@@ -586,51 +552,16 @@ namespace AfeCalibration
                 var saveRequire = false;
                 while (!isBalanced)
                 {
-                    //while (strainSensors.Select(s => Math.Truncate(s.Data.Average(x => x.Value)))
-                    //    .All(x => x < StrainRange.Min))
-
                     var strainValues = strainSensors.Select(s =>
                             Math.Truncate(s.Data.Select(x => Convert.ToInt16(BitConverter.ToUInt16(x.Bytes, 0)))
                                 .Average(b => b))).ToList();
-                    //var strainValues = strainSensors.Select(s =>
-                    //      Math.Truncate(s.Data.Average(x => x.Value))).ToList();
-
+                   
                     Task <LoopResponse> portTask;
-                    //if (strainValues.All(x=>x < StrainRange.Min))
-
+                    
                     while (strainSensors.Select(s => Math.Truncate(s.Data.Select(x => BitConverter.ToUInt16(x.Bytes, 0)).Average(x => x)))
                         .All(x => x < StrainRange.Min))
                     {
-                        //var maxStrain = strainValues.Any()
-                        //    ? strainValues.Max()
-                        //    : 0;
-                        //saveRequire = true;
-                        //var loopCount = ((StrainRange.Min - 50) - Convert.ToInt32(maxStrain)) / _strainIncDecInterval;
-                        //var reminder = maxStrain == 0 
-                        //    ? 0 
-                        //    :(StrainRange.Min - 50) % Convert.ToInt32(maxStrain);
-                      
-                        //if (reminder > 0)
-                        //    loopCount++;
-                        //bool singleIncrement = false;
-                        //if (Math.Abs(StrainRange.Min - Convert.ToInt32(maxStrain)) <= _strainIncDecInterval
-                        //    || Math.Abs(StrainRange.Max - Convert.ToInt32(maxStrain)) <= _strainIncDecInterval)
-                        //    singleIncrement = true;
-
-                        //if (loopCount > 0 && !singleIncrement)
-                        //{
-                        //    while (loopCount > 0)
-                        //    {
-                        //       var response =  _smartPort.Go(menuOption: CommandType.IncrementSg).Result;
-                        //        if ((int)response.ReturnObject != 0)
-                        //            break;
-                        //        loopCount--;
-                        //    }
-                        //}
-                        //else
-                        {
-                            await _smartPort.Go(menuOption: CommandType.IncrementSg);
-                        }
+                        await _smartPort.Go(menuOption: CommandType.IncrementSg);
                         portTask = _smartPort.Go(menuOption: CommandType.Collect);
                         switch (_options.Model)
                         {
@@ -650,34 +581,8 @@ namespace AfeCalibration
 
                     while (strainSensors.Select(s => Math.Truncate(s.Data.Select(x => BitConverter.ToUInt16(x.Bytes, 0)).Average(x => x)))
                         .All(x => x > StrainRange.Max))
-                    //if (strainValues.All(x => x > StrainRange.Max))
                     {
-                        //var maxStrain = strainValues.Any()
-                        //    ? strainValues.Max()
-                        //    : 0;
-
-                        //saveRequire = true;
-                        //var loopCount = (Convert.ToInt32(maxStrain) - (StrainRange.Max-50)) / _strainIncDecInterval;
-                        //var reminder = Convert.ToInt32(maxStrain) % (StrainRange.Max - 50);
-                        //if (reminder > 0)
-                        //    loopCount++;
-                        //bool singleIncrement = false;
-                        //if (Math.Abs(StrainRange.Min - Convert.ToInt32(maxStrain)) <= _strainIncDecInterval
-                        //    || Math.Abs(StrainRange.Max - Convert.ToInt32(maxStrain)) <= _strainIncDecInterval)
-                        //    singleIncrement = true;
-
-                        //if (loopCount > 0 && !singleIncrement)
-                        //{
-                        //    while (loopCount > 0)
-                        //    {
-                        //        _smartPort.Go(menuOption: CommandType.DecrementSg).Wait();
-                        //        loopCount--;
-                        //    }
-                        //}
-                        //else
-                        {
-                            await _smartPort.Go(menuOption: CommandType.DecrementSg);
-                        }
+                        await _smartPort.Go(menuOption: CommandType.DecrementSg);
                         portTask = _smartPort.Go(menuOption: CommandType.Collect);
                         switch (_options.Model)
                         {
@@ -699,8 +604,6 @@ namespace AfeCalibration
                             .All(x => x <= StrainRange.Max)
                         && strainSensors.Select(s => Math.Truncate(s.Data.Select(x => BitConverter.ToUInt16(x.Bytes, 0)).Average(x => x)))
                             .All(x => x >= StrainRange.Min))
-                    //if (strainValues.All(x => x <= StrainRange.Max)
-                    //    && strainValues.All(x => x >= StrainRange.Min) && saveRequire)
                     {
                         await _smartPort.Go(menuOption: CommandType.SaveSg);
                         PrintCollectResponse(strainSensors, SensorType.StrainGauge);
@@ -713,11 +616,11 @@ namespace AfeCalibration
                     }
                 }
                
-                Balanced(SensorType.StrainGauge);
+                Balanced(SensorType.StrainGauge, false, false);
             }
         }
 
-        private static void Balanced(SensorType type)
+        private static void Balanced(SensorType type, bool isPersistingCheckDone, bool isPersisting)
         {
             if (!File.Exists(filePath))
             {
@@ -728,9 +631,17 @@ namespace AfeCalibration
                      ? JsonConvert.DeserializeObject<BalanceSensor>(data)
                      : new BalanceSensor();
             if (balancingData.ChannelOne.ChannelName == type.ToString())
+            {
                 balancingData.ChannelOne.IsCompleted = true;
+                balancingData.ChannelOne.IsPersistingCheckDone = isPersistingCheckDone;
+                balancingData.ChannelOne.IsPersisting = isPersisting;
+            }
             if (balancingData.ChannelTwo.ChannelName == type.ToString())
+            {
                 balancingData.ChannelTwo.IsCompleted = true;
+                balancingData.ChannelTwo.IsPersisting = isPersistingCheckDone;
+                balancingData.ChannelTwo.IsPersistingCheckDone = isPersisting;
+            }
             var balancingInString = JsonConvert.SerializeObject(balancingData);
             File.WriteAllText(filePath, balancingInString);
         }

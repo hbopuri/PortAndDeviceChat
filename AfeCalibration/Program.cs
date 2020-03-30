@@ -249,11 +249,31 @@ namespace AfeCalibration
                                     }
 
 
-                                    if (_options.Model == 1) {
+                                    if (_options.Model == 1)
+                                    {
                                         await AdjustAx(_readDataPortConfig, sensors);
+                                        _smartPort.Start();//Power Off, If, Power On, Connect
+                                        _readDataPortConfig = _smartPort.ReadDataPortConfig();
+                                        portTask = _smartPort.Go(menuOption: CommandType.Collect);
+                                        sensors = ((List<Sensor>)portTask.Result.ReturnObject);
+                                        var axSensors = sensors.Where(x => x.Afe == (_isTip ? Afe.Tip : Afe.Top)
+                                                   && x.Type == SensorType.Accelerometer).ToList();
+
+                                        if (axSensors.Select(s => Math.Truncate(s.Data.Select(x => BitConverter.ToUInt16(x.Bytes, 0)).Average(x => x)))
+                              .All(x => x <= AxRange.Max)
+                          && axSensors.Select(s => Math.Truncate(s.Data.Select(x => BitConverter.ToUInt16(x.Bytes, 0)).Average(x => x)))
+                              .All(x => x >= AxRange.Min))
+                                        {
+                                            Balanced(SensorType.Accelerometer, true, true);
+                                            PrintCollectResponse(sensors, SensorType.Accelerometer);
+                                        }
+                                        else
+                                        {
+                                            Balanced(SensorType.StrainGauge, true, false);
+                                            return;
+                                        }
                                     }
                                 }
-
                                 break;
                             }
                         case CommandType.ReadDataPort:

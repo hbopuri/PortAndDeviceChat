@@ -12,8 +12,8 @@ namespace AfeCalibration
         public string ChannelName { get; set; }
         public List<double> Reading { get; set; } = new List<double>();
         public bool IsCompleted { get; set; }
-        public bool IsPersisting { get; internal set; }
-        public bool IsPersistingCheckDone { get; internal set; }
+        public bool IsPersisting { get; set; }
+        public bool IsPersistingCheckDone { get; set; }
         public MemsTest MemsTest { get; set; } = new MemsTest();
         
     }

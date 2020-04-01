@@ -225,9 +225,14 @@ namespace AfeCalibration
 
 
                                     await AdjustStrain(_readDataPortConfig, sensors);
+                                    Console.WriteLine("Checking Strain Peristance");
                                     _smartPort.Start();//Power Off, If, Power On, Connect
                                     _readDataPortConfig = _smartPort.ReadDataPortConfig();
-                                    portTask = _smartPort.Go(menuOption: CommandType.Collect);
+                                    for (int i = 0; i < 3; i++)
+                                    {
+                                        Thread.Sleep(new TimeSpan(0, 0, 2));
+                                        portTask = _smartPort.Go(menuOption: CommandType.Collect);
+                                    }
                                     sensors = ((List<Sensor>)portTask.Result.ReturnObject);
                                     var strainSensors = sensors.Where(x => x.Afe == (_isTip ? Afe.Tip : Afe.Top)
                                     && x.Type == SensorType.StrainGauge).ToList();
@@ -239,37 +244,48 @@ namespace AfeCalibration
                                         BitConverter.ToUInt16(x.Bytes, 0)).Average(x => x)))
                                         .All(x => x >= StrainRange.Min))
                                     {
+                                        Console.WriteLine("Strain Peristance is good");
                                         Balanced(SensorType.StrainGauge, true, true);
                                         PrintCollectResponse(sensors, SensorType.StrainGauge);
                                     }
                                     else
                                     {
+                                        PrintCollectResponse(sensors, SensorType.StrainGauge);
+                                        Console.WriteLine("Strain is not Peristant. Exiting");
                                         Balanced(SensorType.StrainGauge, true, false);
                                         return;
                                     }
 
-
                                     if (_options.Model == 1)
                                     {
                                         await AdjustAx(_readDataPortConfig, sensors);
+                                        Console.WriteLine("Checking Accel Peristance");
                                         _smartPort.Start();//Power Off, If, Power On, Connect
                                         _readDataPortConfig = _smartPort.ReadDataPortConfig();
-                                        portTask = _smartPort.Go(menuOption: CommandType.Collect);
+                                        for (int i = 0; i < 3; i++)
+                                        {
+                                            Thread.Sleep(new TimeSpan(0, 0, 2));
+                                            portTask = _smartPort.Go(menuOption: CommandType.Collect);
+                                        }
                                         sensors = ((List<Sensor>)portTask.Result.ReturnObject);
                                         var axSensors = sensors.Where(x => x.Afe == (_isTip ? Afe.Tip : Afe.Top)
                                                    && x.Type == SensorType.Accelerometer).ToList();
-
+                                        var delta = _options.MemsTestMax - _options.MemsTestMin;
                                         if (axSensors.Select(s => Math.Truncate(s.Data.Select(x => BitConverter.ToUInt16(x.Bytes, 0)).Average(x => x)))
-                              .All(x => x <= AxRange.Max)
+                              .All(x => x <= AxRange.Max + delta)
                           && axSensors.Select(s => Math.Truncate(s.Data.Select(x => BitConverter.ToUInt16(x.Bytes, 0)).Average(x => x)))
-                              .All(x => x >= AxRange.Min))
+                              .All(x => x >= AxRange.Min- delta))
                                         {
+                                            Console.WriteLine("Accel Peristance is good");
                                             Balanced(SensorType.Accelerometer, true, true);
                                             PrintCollectResponse(sensors, SensorType.Accelerometer);
+                                            MemsTest();
                                         }
                                         else
                                         {
-                                            Balanced(SensorType.StrainGauge, true, false);
+                                            PrintCollectResponse(sensors, SensorType.Accelerometer);
+                                            Console.WriteLine("Accel is not Peristant. Exiting");
+                                            Balanced(SensorType.Accelerometer, true, false);
                                             return;
                                         }
                                     }
@@ -337,6 +353,7 @@ namespace AfeCalibration
 
         private static async Task AdjustAx(DataPortConfig readDataPortConfig, List<Sensor> sensors)
         {
+            Console.WriteLine("Balancing Accel");
             if (readDataPortConfig.SensorChannels.Any(x =>
                 x.Type.ToDecimal(0) == (int)SensorType.Accelerometer))
             {
@@ -395,6 +412,7 @@ namespace AfeCalibration
                         && axSensors.Select(s => Math.Truncate(s.Data.Select(x => BitConverter.ToUInt16(x.Bytes, 0)).Average(x => x)))
                             .All(x => x >= AxRange.Min))
                     {
+                        //Thread.Sleep(new TimeSpan(0, 0, 2));
                         await _smartPort.Go(menuOption: CommandType.SaveAx);
                         PrintCollectResponse(axSensors, SensorType.Accelerometer);
                         isBalanced = true;
@@ -405,13 +423,14 @@ namespace AfeCalibration
                         PrintCollectResponse(axSensors, SensorType.Accelerometer);
                     }
                 }
-                Balanced(SensorType.Accelerometer, false, false);
-                MemsTest();
+                //Balanced(SensorType.Accelerometer, false, false);
+                //MemsTest();
             }
         }
 
         private static void MemsTest()
         {
+            Console.WriteLine("Started Mems Test");
             _defaultDataPortConfig.ModeFlag = new byte[] { 0x41 };
             _smartPort.WriteDataPortConfig(_boardId, _readDataPortConfig, _defaultDataPortConfig);
             List<Sensor> axSensors = new List<Sensor>();
@@ -463,13 +482,14 @@ namespace AfeCalibration
             var max = completeCycleQuantz != null && completeCycleQuantz.Any()
                 ? completeCycleQuantz.Where(x => x != null).Max(x => x.Max())
                 : 0;
+            //var delta = _options.MemsTestMax - _options.MemsTestMin;
 
-            if (min >= (AxRange.Min - _options.MemsTestMin) &&
-                min <= (AxRange.Max + _options.MemsTestMax) &&
+            //if (min >= (AxRange.Min - delta) &&
+            //    min <= (AxRange.Max + delta) &&
 
-                max >= (AxRange.Min - _options.MemsTestMin) &&
-                max <= (AxRange.Max + _options.MemsTestMax))
-            {
+            //    max >= (AxRange.Min - delta) &&
+            //    max <= (AxRange.Max + delta))
+            //{
                 if (_options.MemsTestMin <= (max - min)
                     && _options.MemsTestMax >= (max - min))
                 {
@@ -479,11 +499,11 @@ namespace AfeCalibration
                     SmartLog.WriteErrorLine($"Mems Test Failed: Desired Range {_options.MemsTestMin}-{_options.MemsTestMax}, actual value:{max - min}");
                 else
                     SmartLog.WriteHighlight($"Mems Test PASSED: Desired Range {_options.MemsTestMin}-{_options.MemsTestMax}, actual value:{max - min}");
-            }
-            else
-            {
-                SmartLog.WriteErrorLine($"Mems Test Failed: Ax Balance is out of range {min}-{max}. Please consider to rebalance this AFE");
-            }
+            //}
+            //else
+            //{
+            //    SmartLog.WriteErrorLine($"Mems Test Failed: Ax Balance is out of range {min}-{max}. Please consider to rebalance this AFE");
+            //}
 
             if (!File.Exists(filePath))
             {
@@ -562,6 +582,7 @@ namespace AfeCalibration
 
         private static async Task AdjustStrain(DataPortConfig readDataPortConfig, List<Sensor> sensors)
         {
+            Console.WriteLine("Balancing Strain");
             if (readDataPortConfig.SensorChannels.Any(x =>
                 x.Type.ToDecimal(0) == (int) SensorType.StrainGauge))
             {
@@ -635,8 +656,7 @@ namespace AfeCalibration
                         PrintCollectResponse(strainSensors, SensorType.StrainGauge);
                     }
                 }
-               
-                Balanced(SensorType.StrainGauge, false, false);
+                //Balanced(SensorType.StrainGauge, false, false);
             }
         }
 
@@ -656,11 +676,11 @@ namespace AfeCalibration
                 balancingData.ChannelOne.IsPersistingCheckDone = isPersistingCheckDone;
                 balancingData.ChannelOne.IsPersisting = isPersisting;
             }
-            if (balancingData.ChannelTwo.ChannelName == type.ToString())
+            else if (balancingData.ChannelTwo.ChannelName == type.ToString())
             {
                 balancingData.ChannelTwo.IsCompleted = true;
-                balancingData.ChannelTwo.IsPersisting = isPersistingCheckDone;
-                balancingData.ChannelTwo.IsPersistingCheckDone = isPersisting;
+                balancingData.ChannelTwo.IsPersistingCheckDone = isPersistingCheckDone;
+                balancingData.ChannelTwo.IsPersisting = isPersisting;
             }
             var balancingInString = JsonConvert.SerializeObject(balancingData);
             File.WriteAllText(filePath, balancingInString);
@@ -864,6 +884,10 @@ namespace AfeCalibration
             {
                 File.WriteAllText(filePath, "");
             }
+            //else
+            //{
+            //    File.Create(filePath);
+            //}
             ConsoleColor BorderColor = ConsoleColor.White;
             Console.ForegroundColor = BorderColor;
             _smartPort = new SmartPort();

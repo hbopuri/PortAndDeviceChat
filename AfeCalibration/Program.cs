@@ -191,14 +191,18 @@ namespace AfeCalibration
                             {
                                 if (portTask.Result.ReturnObject != null)
                                 {
-                                    var sensors = ((List<Sensor>)portTask.Result.ReturnObject);
+                                    List<Sensor> sensors = ((List<Sensor>)portTask.Result.ReturnObject);
+                                    for (int i = 0; i < 3; i++)
+                                    {
+                                        sensors = ((List<Sensor>)portTask.Result.ReturnObject);
+                                    }
                                     TipOrTop(sensors);
                                     int maxRetry = 0;
                                     while (!sensors.Any() && maxRetry < 10)
                                     {
                                         portTask = _smartPort.Go(menuOption: CommandType.Collect);
                                         sensors = ((List<Sensor>)portTask.Result.ReturnObject);
-                                        Thread.Sleep(TimeSpan.FromSeconds(3));
+                                        Thread.Sleep(TimeSpan.FromSeconds(1));
                                         maxRetry++;
                                     }
                                     if (maxRetry == 10)
@@ -224,7 +228,8 @@ namespace AfeCalibration
                                     //    .Select(x => x.Data.Select(d => BitConverter.ToUInt16(d.Bytes, 0)).Average(a => a)).Select(x => Math.Truncate(x)).ToList();
 
 
-                                    await AdjustStrain(_readDataPortConfig, sensors);
+                                    await AdjustStrain(_readDataPortConfig, sensors, 1);
+                                    await AdjustStrain(_readDataPortConfig, sensors, 2);
                                     Console.WriteLine("Checking Strain Peristance");
                                     _smartPort.Start();//Power Off, If, Power On, Connect
                                     _readDataPortConfig = _smartPort.ReadDataPortConfig();
@@ -258,11 +263,16 @@ namespace AfeCalibration
 
                                     if (_options.Model == 1)
                                     {
+                                        for (int i = 0; i < 3; i++)
+                                        {
+                                            sensors = ((List<Sensor>)portTask.Result.ReturnObject);
+                                        }
+
                                         await AdjustAx(_readDataPortConfig, sensors);
                                         Console.WriteLine("Checking Accel Peristance");
                                         _smartPort.Start();//Power Off, If, Power On, Connect
                                         _readDataPortConfig = _smartPort.ReadDataPortConfig();
-                                        for (int i = 0; i < 3; i++)
+                                        for (int i = 0; i < 10; i++)
                                         {
                                             Thread.Sleep(new TimeSpan(0, 0, 2));
                                             portTask = _smartPort.Go(menuOption: CommandType.Collect);
@@ -580,7 +590,8 @@ namespace AfeCalibration
             _smartPort.WriteDataPortConfig(_boardId, _readDataPortConfig, _defaultDataPortConfig);
         }
 
-        private static async Task AdjustStrain(DataPortConfig readDataPortConfig, List<Sensor> sensors)
+        private static async Task AdjustStrain(DataPortConfig readDataPortConfig, 
+            List<Sensor> sensors, int chipSelection)
         {
             Console.WriteLine("Balancing Strain");
             if (readDataPortConfig.SensorChannels.Any(x =>
@@ -602,7 +613,7 @@ namespace AfeCalibration
                     while (strainSensors.Select(s => Math.Truncate(s.Data.Select(x => BitConverter.ToUInt16(x.Bytes, 0)).Average(x => x)))
                         .All(x => x < StrainRange.Min))
                     {
-                        await _smartPort.Go(menuOption: CommandType.IncrementSg);
+                        await _smartPort.Go(menuOption: CommandType.IncrementSg, chipSelection: chipSelection);
                         portTask = _smartPort.Go(menuOption: CommandType.Collect);
                         switch (_options.Model)
                         {
@@ -623,7 +634,7 @@ namespace AfeCalibration
                     while (strainSensors.Select(s => Math.Truncate(s.Data.Select(x => BitConverter.ToUInt16(x.Bytes, 0)).Average(x => x)))
                         .All(x => x > StrainRange.Max))
                     {
-                        await _smartPort.Go(menuOption: CommandType.DecrementSg);
+                        await _smartPort.Go(menuOption: CommandType.DecrementSg, chipSelection: chipSelection);
                         portTask = _smartPort.Go(menuOption: CommandType.Collect);
                         switch (_options.Model)
                         {
@@ -646,7 +657,7 @@ namespace AfeCalibration
                         && strainSensors.Select(s => Math.Truncate(s.Data.Select(x => BitConverter.ToUInt16(x.Bytes, 0)).Average(x => x)))
                             .All(x => x >= StrainRange.Min))
                     {
-                        await _smartPort.Go(menuOption: CommandType.SaveSg);
+                        await _smartPort.Go(menuOption: CommandType.SaveSg, chipSelection: chipSelection);
                         PrintCollectResponse(strainSensors, SensorType.StrainGauge);
                         isBalanced = true;
                     }

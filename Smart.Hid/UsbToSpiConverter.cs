@@ -44,7 +44,7 @@ namespace Smart.Hid
             _deviceCount = 0;
         }
 
-        public static async Task<int> IncrementOrDecrementStrain(SgAdjust sgAdjust)
+        public static async Task<int> IncrementOrDecrementStrain(SgAdjust sgAdjust, int chipSelection)
         {
             if (_deviceCount == 0)
             {
@@ -62,6 +62,9 @@ namespace Smart.Hid
             uint txFerSize2 = 3; // I/O expander xFer size set to 4
             byte spiMd2 = 0;
             uint csMask4 = 0x02; //GP1 as CS  // 0x10 set GP4 as CS
+
+            //if (chipSelection == 1)
+            //    csMask4 = 0x01;
 
             byte[] txData = new byte[3], rxData = new byte[3];
             switch (sgAdjust)

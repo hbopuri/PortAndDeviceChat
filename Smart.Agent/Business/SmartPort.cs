@@ -792,7 +792,7 @@ namespace Smart.Agent.Business
             }
         }
 
-        public async Task<LoopResponse> Go(int menuOption)
+        public async Task<LoopResponse> Go(int menuOption, int chipSelection = -99)
         {
             //SmartLog.WriteLine();
             var loopResponse = new LoopResponse {Selection = menuOption};
@@ -865,7 +865,9 @@ namespace Smart.Agent.Business
                 case CommandType.IncrementSg:
                     try
                     {
-                        loopResponse.ReturnObject = await UsbToSpiConverter.IncrementOrDecrementStrain(SgAdjust.Increment);
+                        loopResponse.ReturnObject = 
+                            await UsbToSpiConverter
+                            .IncrementOrDecrementStrain(SgAdjust.Increment, chipSelection);
                         //loopResponse.ReturnObject = Collect();
                     }
                     catch (Exception ex)
@@ -878,7 +880,9 @@ namespace Smart.Agent.Business
                 case CommandType.DecrementSg:
                     try
                     {
-                        loopResponse.ReturnObject = await UsbToSpiConverter.IncrementOrDecrementStrain(SgAdjust.Decrement);
+                        loopResponse.ReturnObject =
+                            await UsbToSpiConverter
+                            .IncrementOrDecrementStrain(SgAdjust.Decrement, chipSelection);
                         // loopResponse.ReturnObject = Collect();
                     }
                     catch (Exception ex)
@@ -953,7 +957,9 @@ namespace Smart.Agent.Business
                 case CommandType.SaveSg:
                     try
                     {
-                        loopResponse.ReturnObject = await UsbToSpiConverter.IncrementOrDecrementStrain(SgAdjust.Save);
+                        loopResponse.ReturnObject =
+                            await UsbToSpiConverter
+                            .IncrementOrDecrementStrain(SgAdjust.Save, chipSelection);
                         //loopResponse.ReturnObject = Collect();
                     }
                     catch (Exception ex)

@@ -33,7 +33,7 @@ namespace Smart.Agent.Model
             CommandQueue.Add(new Queue
             { SequenceId = 1, CommandName = "IF", CommandType = Constant.CommandType.If, ExpectedPacketSize = 4, CommBytes = _command.If(), MaxRetry = 1, RetryWait = _defaultRetryWait, WaitForNext = _defaultNextCommandWait, MoveNext = true });
             CommandQueue.Add(new Queue
-                { SequenceId = 2, CommandName = "POWER ON", CommandType = Constant.CommandType.PowerOn, ExpectedPacketSize = 5, CommBytes = _command.PowerOn(), MaxRetry = 3, RetryWait= _defaultRetryWait, WaitForNext = 25, MoveNext = true });
+                { SequenceId = 2, CommandName = "POWER ON", CommandType = Constant.CommandType.PowerOn, ExpectedPacketSize = 5, CommBytes = _command.PowerOn(), MaxRetry = 3, RetryWait= _defaultRetryWait, WaitForNext = 10, MoveNext = true });
             CommandQueue.Add(new Queue
                 { SequenceId = 3, CommandName = "CONNECT", CommandType = Constant.CommandType.Connect, ExpectedPacketSize = 15,  CommBytes = _command.Connect(), MaxRetry = 10, RetryWait = _defaultRetryWait, WaitForNext = _defaultNextCommandWait, MoveNext = true });
             CommandQueue.Add(new Queue
@@ -41,7 +41,7 @@ namespace Smart.Agent.Model
             CommandQueue.Add(new Queue
                 { SequenceId = -4, CommandName = "WRITE DATA PORT CONFIG", CommandType = Constant.CommandType.WriteDataPort, ExpectedPacketSize = 14, CommBytes = _command.WriteDataPortConfig(), MaxRetry = 5, RetryWait = _defaultRetryWait, WaitForNext = _defaultNextCommandWait, MoveNext = false });
             CommandQueue.Add(new Queue
-                { SequenceId = -3, CommandName = "COLLECT", CommandType = Constant.CommandType.Collect, ExpectedPacketSize = 277, CommBytes = _command.Collect(), MaxRetry = 15, RetryWait = _defaultRetryWait, WaitForNext = _defaultNextCommandWait, MoveNext = false });
+                { SequenceId = -3, CommandName = "COLLECT", CommandType = Constant.CommandType.Collect, ExpectedPacketSize = 277, CommBytes = _command.Collect(), MaxRetry = 1, RetryWait = _defaultRetryWait, WaitForNext = _defaultNextCommandWait, MoveNext = false });
             CommandQueue.Add(new Queue
                 { SequenceId = -2, CommandName = "POWER OFF", CommandType = Constant.CommandType.PowerOff, CommBytes = _command.PowerOff(), MaxRetry = 3, RetryWait = _defaultRetryWait, WaitForNext = _defaultNextCommandWait, MoveNext = false });
            
